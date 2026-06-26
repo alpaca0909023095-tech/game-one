@@ -1,4 +1,4 @@
-﻿// 升級 UI 基礎數值從 config.js 讀取。
+// 升級 UI 基礎數值從 config.js 讀取。
 const SKILL_CARD_ENTER_DELAY = GAME_CONFIG.upgradeUi.cardEnterDelay;
 const SKILL_CARD_EXIT_DELAY = GAME_CONFIG.upgradeUi.cardExitDelay;
 const SKILL_PANEL_EXIT_TOTAL_TIME = GAME_CONFIG.upgradeUi.panelExitTotalTime;
@@ -186,6 +186,7 @@ function openSkillPanel() {
   clearUpgradeExitTimer();
 
   bullets = [];
+  enemyBullets = [];
   enemies = [];
   particles = [];
 

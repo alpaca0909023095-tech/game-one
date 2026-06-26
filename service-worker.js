@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = "game-one-v1";
+const CACHE_NAME = "game-one-v5-enemy-b4";
 
 const CORE_ASSETS = [
   "./",
@@ -49,7 +49,7 @@ self.addEventListener("fetch", event => {
   }
 
   event.respondWith(
-    caches.match(request)
+    caches.match(request, { ignoreSearch: true })
       .then(cached => {
         if (cached) return cached;
 

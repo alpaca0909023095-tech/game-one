@@ -1,4 +1,4 @@
-﻿// 子彈基礎數值從 config.js 讀取。
+// 子彈基礎數值從 config.js 讀取。
 const PLAYER_BULLET_SPEED = GAME_CONFIG.bullet.speed;
 const PLAYER_SHOOT_INTERVAL = GAME_CONFIG.bullet.shootInterval;
 const PLAYER_BULLET_COLLISION_RADIUS = GAME_CONFIG.bullet.collisionRadius;
@@ -18,6 +18,14 @@ const PLAYER_BULLET_TRAIL_SIZE_MIN = GAME_CONFIG.bullet.trailSizeMin;
 const PLAYER_BULLET_TRAIL_SIZE_MAX = GAME_CONFIG.bullet.trailSizeMax;
 const PLAYER_BULLET_TRAIL_COLOR = GAME_CONFIG.bullet.trailColor;
 
+const ENEMY_BULLET_SPEED = GAME_CONFIG.enemyBullet.speed;
+const ENEMY_BULLET_DAMAGE = GAME_CONFIG.enemyBullet.damage;
+const ENEMY_BULLET_RADIUS = GAME_CONFIG.enemyBullet.radius;
+const ENEMY_BULLET_WIDTH = GAME_CONFIG.enemyBullet.width;
+const ENEMY_BULLET_HEIGHT = GAME_CONFIG.enemyBullet.height;
+const ENEMY_BULLET_LIFE = GAME_CONFIG.enemyBullet.life;
+const ENEMY_BULLET_COLOR = GAME_CONFIG.enemyBullet.color;
+
 function shootBullet() {
   const laneCount = getCurrentBulletLaneCount();
   const laneSpacing = PLAYER_BULLET_WIDTH + 9;
@@ -26,6 +34,7 @@ function shootBullet() {
     const offsetX = (i - (laneCount - 1) / 2) * laneSpacing;
 
     bullets.push({
+      team: "player",
       x: player.x + offsetX,
       y: player.y - 48,
       vx: 0,
@@ -43,6 +52,7 @@ function shootBullet() {
 }
 
 function createPlayerBulletTrail(b, dt) {
+  if (b.team !== "player") return;
   if (b.skill || b.homingEgg) return;
   if (PLAYER_BULLET_TRAIL_INTERVAL <= 0) return;
 
@@ -78,9 +88,87 @@ function drawBullet(b) {
   ctx.shadowBlur = 0;
 }
 
+function shootEnemyBulletAtPlayer(enemy, fixedVx, fixedVy) {
+  if (!player) return;
 
+  let vx = fixedVx;
+  let vy = fixedVy;
 
+  if (vx === undefined || vy === undefined) {
+    const dx = player.x - enemy.x;
+    const dy = player.y - enemy.y;
+    const len = Math.max(0.001, Math.hypot(dx, dy));
+    vx = dx / len * ENEMY_BULLET_SPEED;
+    vy = dy / len * ENEMY_BULLET_SPEED;
+  }
 
+  enemyBullets.push({
+    team: "enemy",
+    x: enemy.x,
+    y: enemy.y + enemy.r * 0.6,
+    vx: vx,
+    vy: vy,
+    r: ENEMY_BULLET_RADIUS,
+    w: ENEMY_BULLET_WIDTH,
+    h: ENEMY_BULLET_HEIGHT,
+    damage: ENEMY_BULLET_DAMAGE,
+    color: ENEMY_BULLET_COLOR,
+    life: ENEMY_BULLET_LIFE,
+    dead: 0
+  });
+}
+
+function updateEnemyBullets(dt) {
+  for (let b of enemyBullets) {
+    if (b.dead) continue;
+
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+    b.life -= dt;
+  }
+
+  enemyBullets = enemyBullets.filter(b => !b.dead && b.life > 0 && b.y > -100 && b.y < H + 120 && b.x > -120 && b.x < W + 120);
+}
+
+function updateEnemyBulletPlayerCollision() {
+  for (let b of enemyBullets) {
+    if (b.dead || b.life <= 0) continue;
+
+    if (distance(b.x, b.y, player.x, player.y) < b.r + player.r) {
+      b.dead = 1;
+      b.life = 0;
+
+      if (player.invincible <= 0) {
+        player.hp -= b.damage;
+        player.invincible = 0.7;
+
+        triggerHpHitEffect();
+        triggerPlayerHitShake();
+        createExplosion(player.x, player.y, 0.9);
+
+        if (player.hp <= 0) {
+          player.hp = 0;
+          running = 0;
+          finalText.innerHTML = "本次成績<br>關卡：" + level + "<br>金幣：" + coins;
+          gameOverPanel.style.display = "flex";
+        }
+      }
+    }
+  }
+
+  enemyBullets = enemyBullets.filter(b => !b.dead && b.life > 0);
+}
+
+function drawEnemyBullet(b) {
+  ctx.save();
+  ctx.translate(b.x, b.y);
+  ctx.rotate(Math.atan2(b.vy, b.vx) + Math.PI / 2);
+  ctx.fillStyle = b.color;
+  ctx.shadowColor = "rgba(255,138,61,0.75)";
+  ctx.shadowBlur = 8;
+  ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+  ctx.restore();
+}
 
 function findNearestEnemy(x, y) {
   let bestEnemy = null;
@@ -103,6 +191,7 @@ function spawnHomingEgg() {
   const target = findNearestEnemy(player.x, player.y);
 
   bullets.push({
+    team: "player",
     x: player.x,
     y: player.y - 54,
     vx: 0,
@@ -188,8 +277,3 @@ function drawHomingEgg(b) {
 
   ctx.restore();
 }
-
-
-
-
-

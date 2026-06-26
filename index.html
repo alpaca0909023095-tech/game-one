@@ -9,10 +9,10 @@
 <meta name="apple-mobile-web-app-title" content="GameOne">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="format-detection" content="telephone=no">
-<link rel="manifest" href="./manifest.webmanifest">
+<link rel="manifest" href="./manifest.webmanifest?v=20260627-enemy-b4">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
-<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./style.css?v=20260627-enemy-b4">
 </head>
 
 <body>
@@ -86,19 +86,49 @@
   </div>
 </div>
 
-<script src="./config.js"></script>
-<script src="./player.js"></script>
-<script src="./enemy.js"></script>
-<script src="./bullet.js"></script>
-<script src="./skill.js"></script>
-<script src="./skills.js"></script>
-<script src="./upgrade_ui.js"></script>
-<script src="./main.js"></script>
+<script src="./config.js?v=20260627-enemy-b4"></script>
+<script src="./player.js?v=20260627-enemy-b4"></script>
+<script src="./enemy.js?v=20260627-enemy-b4"></script>
+<script src="./bullet.js?v=20260627-enemy-b4"></script>
+<script src="./skill.js?v=20260627-enemy-b4"></script>
+<script src="./skills.js?v=20260627-enemy-b4"></script>
+<script src="./upgrade_ui.js?v=20260627-enemy-b4"></script>
+<script src="./main.js?v=20260627-enemy-b4"></script>
 <script>
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", function () {
+    const isLocalDev = location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname === "[::1]";
+
     if (location.protocol === "file:") {
       console.warn("[Game One] Service worker needs http:// or https://. file:// cannot be used for PWA offline caching.");
+      return;
+    }
+
+    if (isLocalDev) {
+      console.info("[Game One] local development mode: clearing service worker and cache so config changes reload immediately.");
+
+      navigator.serviceWorker.getRegistrations()
+        .then(function (registrations) {
+          return Promise.all(registrations.map(function (registration) {
+            return registration.unregister();
+          }));
+        })
+        .then(function () {
+          if (!("caches" in window)) return [];
+
+          return caches.keys().then(function (cacheNames) {
+            return Promise.all(cacheNames.map(function (cacheName) {
+              return caches.delete(cacheName);
+            }));
+          });
+        })
+        .then(function () {
+          console.info("[Game One] local development service worker and cache cleared.");
+        })
+        .catch(function (error) {
+          console.warn("[Game One] local development cache clear failed:", error);
+        });
+
       return;
     }
 
@@ -114,35 +144,3 @@ if ("serviceWorker" in navigator) {
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

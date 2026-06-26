@@ -1,4 +1,4 @@
-﻿// 主動技能基礎數值從 config.js 讀取。
+// 主動技能基礎數值從 config.js 讀取。
 const SKILL_BULLET_SPEED = GAME_CONFIG.skill.bulletSpeed;
 const SKILL_BULLET_COLLISION_RADIUS = GAME_CONFIG.skill.collisionRadius;
 const SKILL_BULLET_WIDTH = GAME_CONFIG.skill.width;
@@ -37,6 +37,7 @@ function triggerSkill() {
   shootTimer = PLAYER_SHOOT_INTERVAL;
 
   bullets.push({
+    team: "player",
     x: player.x,
     y: player.y - 52,
     vx: 0,

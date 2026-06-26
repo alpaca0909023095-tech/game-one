@@ -1,4 +1,4 @@
-﻿// 遊戲主流程基礎數值從 config.js 讀取。
+// 遊戲主流程基礎數值從 config.js 讀取。
 const COIN_PER_ENEMY = GAME_CONFIG.reward.coinPerEnemy;
 const LEVEL_DURATION = GAME_CONFIG.level.duration;
 const LEVEL_TEXT_DURATION = GAME_CONFIG.level.textDuration;
@@ -33,6 +33,7 @@ let H = 0;
 
 let player;
 let bullets = [];
+let enemyBullets = [];
 let enemies = [];
 let particles = [];
 let shockwaves = [];
@@ -54,13 +55,15 @@ let shockwaveBurstTimer = 0;
 let shockwaveBurstLeft = 0;
 let shieldRespawnTimer = 0;
 let shieldOrbitAngle = 0;
+let enemyBRespawnTimer = 0;
+let enemyBGroupActive = 0;
 let coins = 0;
 
 let level = 1;
 let levelStartTime = performance.now();
 let levelTextTimer = 0;
 let levelNoSpawnTimer = 0;
-let levelText = "";
+let levelText = "\u7b2c " + level + " \u95dc";
 
 let touching = 0;
 let lastTapTime = 0;
@@ -127,14 +130,17 @@ function triggerCoinEffect() {
 function startLevel(newLevel) {
   level = newLevel;
   levelStartTime = performance.now();
-  levelText = "第 " + level + " 關";
+  levelText = "\u7b2c " + level + " \u95dc";
   levelTextTimer = LEVEL_TEXT_DURATION;
   levelNoSpawnTimer = LEVEL_NO_SPAWN_TIME;
   enemySpawnTimer = 0;
+  enemyBRespawnTimer = 0;
+  enemyBGroupActive = 0;
   shootTimer = 0;
   resetHomingEggTimers();
   resetShockwaveTimers();
   bullets = [];
+  enemyBullets = [];
   enemies = [];
   particles = [];
   shockwaves = [];
@@ -147,6 +153,7 @@ function resetGame() {
   player = createPlayer();
 
   bullets = [];
+  enemyBullets = [];
   enemies = [];
   particles = [];
 
@@ -155,6 +162,8 @@ function resetGame() {
   coinText.classList.remove("coinPop");
 
   enemySpawnTimer = 0;
+  enemyBRespawnTimer = 0;
+  enemyBGroupActive = 0;
   shootTimer = 0;
   resetHomingEggTimers();
   resetShockwaveTimers();
@@ -162,6 +171,7 @@ function resetGame() {
   shields = [];
   shieldRespawnTimer = 0;
   shieldOrbitAngle = 0;
+  enemyBRespawnTimer = 0;
   lastTapTime = 0;
   lastTime = performance.now();
 
@@ -319,6 +329,19 @@ function createExplosion(x, y, scale = 1) {
   }
 }
 
+function killEnemy(enemy, explosionScale = 1.3) {
+  if (!enemy || enemy.dead) return;
+
+  enemy.dead = 1;
+  coins += COIN_PER_ENEMY;
+  coinNumber.textContent = coins;
+  triggerCoinEffect();
+  createExplosion(enemy.x, enemy.y, explosionScale);
+
+  if (enemy.type === "B") {
+    enemyBRespawnTimer = ENEMY_B_RESPAWN_DELAY;
+  }
+}
 function resetHomingEggTimers() {
   homingEggTimer = HOMING_EGG_INTERVAL;
   homingEggBurstTimer = 0;
@@ -444,6 +467,41 @@ function updateShockwaves(dt) {
   shockwaves = shockwaves.filter(w => w.r < w.maxR);
 }
 
+function updateShockwaveEnemyBulletCollision() {
+  if (typeof enemyBullets === "undefined" || enemyBullets.length <= 0) return;
+  if (shockwaves.length <= 0) return;
+
+  const baseThickness = Math.max(8, SHOCKWAVE_LINE_WIDTH * 1.8);
+
+  for (let w of shockwaves) {
+    if (w.r <= 0 || w.life <= 0) continue;
+
+    for (let bullet of enemyBullets) {
+      if (bullet.dead || bullet.life <= 0) continue;
+
+      const d = distance(w.x, w.y, bullet.x, bullet.y);
+      const ringHit = Math.abs(d - w.r) <= baseThickness + bullet.r;
+
+      if (ringHit) {
+        bullet.dead = 1;
+        bullet.life = 0;
+
+        particles.push({
+          x: bullet.x,
+          y: bullet.y,
+          vx: rand(-22, 22),
+          vy: rand(-22, 22),
+          r: rand(4, 7),
+          life: rand(0.16, 0.28),
+          color: "rgba(170,235,255,0.9)",
+          square: 1
+        });
+      }
+    }
+  }
+
+  enemyBullets = enemyBullets.filter(b => !b.dead && b.life > 0);
+}
 function drawShockwaves() {
   for (let w of shockwaves) {
     ctx.save();
@@ -514,13 +572,8 @@ function damageEnemyByShield(enemy, shield) {
   enemy.hp -= SHIELD_DAMAGE;
   enemy.hitShake = ENEMY_HIT_SHAKE_TIME;
 
-  if (enemy.hp <= 0) {
-    enemy.dead = 1;
-    coins += COIN_PER_ENEMY;
-    coinNumber.textContent = coins;
-    triggerCoinEffect();
-    createExplosion(enemy.x, enemy.y, 1.1);
-  }
+  if (enemy.hp <= 0) killEnemy(enemy, 1.1);
+
 
   shield.dead = 1;
 }
@@ -625,7 +678,7 @@ function updateLevelTimer(dt) {
 
 function updateEnemyCollision(dt) {
   for (let e of enemies) {
-    e.y += e.speed * dt;
+    if (e.type !== "B") e.y += e.speed * dt;
     e.hitShake -= dt;
 
     if (distance(player.x, player.y, e.x, e.y) < player.r + e.r) {
@@ -634,6 +687,7 @@ function updateEnemyCollision(dt) {
         player.invincible = 0.7;
 
         triggerHpHitEffect();
+        triggerPlayerHitShake();
         createExplosion(player.x, player.y, 1.1);
 
         if (player.hp <= 0) {
@@ -649,6 +703,8 @@ function updateEnemyCollision(dt) {
 
 function updateBullets(dt) {
   for (let b of bullets) {
+    if (b.team && b.team !== "player") continue;
+
     createSkillTrail(b, dt);
     createPlayerBulletTrail(b, dt);
     updateHomingEgg(b, dt);
@@ -693,13 +749,8 @@ function updateBullets(dt) {
           }
         }
 
-        if (e.hp <= 0) {
-          e.dead = 1;
-          coins += COIN_PER_ENEMY;
-          coinNumber.textContent = coins;
-          triggerCoinEffect();
-          createExplosion(e.x, e.y, 1.3);
-        }
+        if (e.hp <= 0) killEnemy(e, 1.3);
+
 
         break;
       }
@@ -733,6 +784,7 @@ function update(dt) {
   player.invincible -= dt;
   player.skillFlash -= dt;
   player.skillLock -= dt;
+  player.hitShake -= dt;
 
   if (player.skillLock <= 0 && shootTimer <= 0) {
     shootBullet();
@@ -740,16 +792,20 @@ function update(dt) {
   }
 
   updateEnemySpawn(dt);
+  updateEnemyActions(dt);
   updateHomingEggSpawner(dt);
   updateShockwaveSpawner(dt);
+  updateShockwaves(dt);
+  updateEnemyBullets(dt);
+  updateShockwaveEnemyBulletCollision();
   updateShields(dt);
+  updateEnemyBulletPlayerCollision();
   updateEnemyCollision(dt);
   updateBullets(dt);
 
   enemies = enemies.filter(e => !e.dead && e.y < H + 90);
 
   updateParticles(dt);
-  updateShockwaves(dt);
   updateHpBar();
 }
 
@@ -828,6 +884,10 @@ function draw() {
   drawBackground();
   drawShockwaves();
   drawParticles();
+
+  for (let b of enemyBullets) {
+    drawEnemyBullet(b);
+  }
 
   for (let b of bullets) {
     if (b.homingEgg) {
