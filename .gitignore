@@ -1,0 +1,8 @@
+.agents/
+.codex/
+*.log
+.DS_Store
+Thumbs.db
+game-offline.html
+main.txt
+

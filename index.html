@@ -1,0 +1,148 @@
+﻿<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>肉鴿射擊 Demo</title>
+<meta name="theme-color" content="#050814">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="GameOne">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<link rel="stylesheet" href="./style.css">
+</head>
+
+<body>
+<canvas id="game"></canvas>
+<div id="debugError"></div>
+
+<div id="top">
+  <div id="hpBox">
+    <div id="hpLabel">HP</div>
+    <div id="hpBarBack">
+      <div id="hpBar"></div>
+    </div>
+    <div id="coinText">
+      <span id="coinIcon"></span>
+      <span id="coinNumber">0</span>
+    </div>
+    <div id="timeText">
+      <span id="timeIcon"></span>
+      <span id="timeNumber">15s</span>
+    </div>
+  </div>
+</div>
+
+<div id="hint">拖曳移動，自動射擊。快速雙擊可發動技能，技能後 0.75 秒不能普通射擊。</div>
+
+<div id="startPanel">
+  <h1>肉鴿射擊 Demo</h1>
+  <p>生存 15 秒後選擇升級。拖曳移動並閃避敵人，快速雙擊可發動技能。</p>
+  <button id="startBtn">開始遊戲</button>
+</div>
+
+<div id="gameOver">
+  <h1>遊戲結束</h1>
+  <div id="finalText">本次成績</div>
+  <button id="restartBtn">重新開始</button>
+</div>
+
+<div id="skillPanel">
+  <div id="skillPhoneFrame">
+    <div id="skillTitle">選擇升級</div>
+    <div id="upgradeCoinText">金幣 0</div>
+
+    <div id="skillGrid">
+      <div class="skillCard card1" data-skill="1">
+        <div class="skillIcon">*</div>
+        <div class="skillName">升級 1</div>
+        <div class="skillDesc">效果預留</div>
+      </div>
+
+      <div class="skillCard card2" data-skill="2">
+        <div class="skillIcon">+</div>
+        <div class="skillName">升級 2</div>
+        <div class="skillDesc">效果預留</div>
+      </div>
+
+      <div class="skillCard card3" data-skill="3">
+        <div class="skillIcon">x</div>
+        <div class="skillName">升級 3</div>
+        <div class="skillDesc">效果預留</div>
+      </div>
+
+      <div class="skillCard card4" data-skill="4">
+        <div class="skillIcon">#</div>
+        <div class="skillName">升級 4</div>
+        <div class="skillDesc">效果預留</div>
+      </div>
+    </div>
+
+    <button id="upgradeSkipBtn" type="button">跳過</button>
+    <div id="skillTip">金幣足夠可連續購買，或直接跳過</div>
+  </div>
+</div>
+
+<script src="./config.js"></script>
+<script src="./player.js"></script>
+<script src="./enemy.js"></script>
+<script src="./bullet.js"></script>
+<script src="./skill.js"></script>
+<script src="./skills.js"></script>
+<script src="./upgrade_ui.js"></script>
+<script src="./main.js"></script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    if (location.protocol === "file:") {
+      console.warn("[Game One] Service worker needs http:// or https://. file:// cannot be used for PWA offline caching.");
+      return;
+    }
+
+    navigator.serviceWorker.register("./service-worker.js")
+      .then(function (registration) {
+        console.log("[Game One] service worker registered:", registration.scope);
+      })
+      .catch(function (error) {
+        console.error("[Game One] service worker registration failed:", error);
+      });
+  });
+}
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
