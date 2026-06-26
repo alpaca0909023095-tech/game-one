@@ -1,4 +1,4 @@
-// 子彈基礎數值從 config.js 讀取。
+﻿// 子彈基礎數值從 config.js 讀取。
 const PLAYER_BULLET_SPEED = GAME_CONFIG.bullet.speed;
 const PLAYER_SHOOT_INTERVAL = GAME_CONFIG.bullet.shootInterval;
 const PLAYER_BULLET_COLLISION_RADIUS = GAME_CONFIG.bullet.collisionRadius;
@@ -25,6 +25,8 @@ const ENEMY_BULLET_WIDTH = GAME_CONFIG.enemyBullet.width;
 const ENEMY_BULLET_HEIGHT = GAME_CONFIG.enemyBullet.height;
 const ENEMY_BULLET_LIFE = GAME_CONFIG.enemyBullet.life;
 const ENEMY_BULLET_COLOR = GAME_CONFIG.enemyBullet.color;
+const ENEMY_BULLET_GLOW_COLOR = GAME_CONFIG.enemyBullet.glowColor;
+const ENEMY_BULLET_GLOW_BLUR = GAME_CONFIG.enemyBullet.glowBlur;
 
 function shootBullet() {
   const laneCount = getCurrentBulletLaneCount();
@@ -164,8 +166,8 @@ function drawEnemyBullet(b) {
   ctx.translate(b.x, b.y);
   ctx.rotate(Math.atan2(b.vy, b.vx) + Math.PI / 2);
   ctx.fillStyle = b.color;
-  ctx.shadowColor = "rgba(255,138,61,0.75)";
-  ctx.shadowBlur = 8;
+  ctx.shadowColor = ENEMY_BULLET_GLOW_COLOR;
+  ctx.shadowBlur = ENEMY_BULLET_GLOW_BLUR;
   ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
   ctx.restore();
 }

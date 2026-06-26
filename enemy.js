@@ -28,6 +28,10 @@ const ENEMY_B_MOVE_INTERVAL_MAX = GAME_CONFIG.enemyB.moveIntervalMax;
 const ENEMY_B_MOVE_SPEED = GAME_CONFIG.enemyB.moveSpeed;
 const ENEMY_B_PRE_ATTACK_TIME = GAME_CONFIG.enemyB.preAttackTime;
 const ENEMY_B_PRE_ATTACK_PULSES = GAME_CONFIG.enemyB.preAttackPulses;
+const ENEMY_B_GROUP_SPAWN_GAP = GAME_CONFIG.enemyB.groupSpawnGap;
+const ENEMY_B_GROUP_SIZE_LEVEL_GROWTH = GAME_CONFIG.enemyB.groupSizeLevelGrowth;
+const ENEMY_B_CORE_RADIUS = GAME_CONFIG.enemyB.coreRadius;
+const ENEMY_B_PRE_ATTACK_PULSE_SCALE = GAME_CONFIG.enemyB.preAttackPulseScale;
 
 const LEVEL_NO_SPAWN_TIME = GAME_CONFIG.level.noSpawnTime;
 
@@ -129,25 +133,41 @@ function spawnEnemyB(index = 0, total = 1) {
   });
 }
 
-function spawnEnemyBGroup() {
-  const count = Math.max(1, Math.floor(ENEMY_B_GROUP_SIZE));
+function getEnemyBGroupSize() {
+  const levelBonus = Math.max(0, level - ENEMY_B_START_LEVEL) * ENEMY_B_GROUP_SIZE_LEVEL_GROWTH;
+  return Math.max(1, Math.floor(ENEMY_B_GROUP_SIZE + levelBonus));
+}
 
-  for (let i = 0; i < count; i++) {
-    spawnEnemyB(i, count);
-  }
-
+function startEnemyBGroupSpawn() {
+  enemyBGroupSpawnTotal = getEnemyBGroupSize();
+  enemyBGroupSpawnLeft = enemyBGroupSpawnTotal;
+  enemyBGroupSpawnIndex = 0;
+  enemyBGroupSpawnTimer = 0;
   enemyBGroupActive = 1;
+}
+
+function updateEnemyBGroupSpawn(dt) {
+  if (enemyBGroupSpawnLeft <= 0) return;
+
+  enemyBGroupSpawnTimer -= dt;
+  if (enemyBGroupSpawnTimer > 0) return;
+
+  spawnEnemyB(enemyBGroupSpawnIndex, enemyBGroupSpawnTotal);
+  enemyBGroupSpawnIndex++;
+  enemyBGroupSpawnLeft--;
+  enemyBGroupSpawnTimer = ENEMY_B_GROUP_SPAWN_GAP;
 }
 
 function updateEnemyBSpawner(dt) {
   if (level < ENEMY_B_START_LEVEL) return;
   if (levelNoSpawnTimer > 0) return;
 
-  const aliveCount = getAliveEnemyBCount();
+  if (enemyBGroupActive) {
+    updateEnemyBGroupSpawn(dt);
 
-  if (enemyBGroupActive && aliveCount > 0) return;
+    const aliveCount = getAliveEnemyBCount();
+    if (aliveCount > 0 || enemyBGroupSpawnLeft > 0) return;
 
-  if (enemyBGroupActive && aliveCount <= 0) {
     enemyBGroupActive = 0;
     enemyBRespawnTimer = ENEMY_B_RESPAWN_DELAY;
   }
@@ -155,8 +175,7 @@ function updateEnemyBSpawner(dt) {
   enemyBRespawnTimer -= dt;
 
   if (enemyBRespawnTimer <= 0 && !enemyBGroupActive) {
-    spawnEnemyBGroup();
-    enemyBRespawnTimer = ENEMY_B_RESPAWN_DELAY;
+    startEnemyBGroupSpawn();
   }
 }
 
@@ -321,7 +340,7 @@ function getEnemyBCoreScale(e) {
 
   const progress = 1 - clamp(e.preAttackTimer / ENEMY_B_PRE_ATTACK_TIME, 0, 1);
   const pulse = Math.sin(progress * Math.PI * 2 * ENEMY_B_PRE_ATTACK_PULSES);
-  return 1 + Math.max(0, pulse) * 0.55;
+  return 1 + Math.max(0, pulse) * ENEMY_B_PRE_ATTACK_PULSE_SCALE;
 }
 
 function drawEnemyB(e) {
@@ -359,7 +378,7 @@ function drawEnemyB(e) {
   ctx.scale(coreScale, coreScale);
   ctx.fillStyle = "#ffb45c";
   ctx.beginPath();
-  ctx.arc(0, 10 * s, 5 * s, 0, Math.PI * 2);
+  ctx.arc(0, 10 * s, ENEMY_B_CORE_RADIUS * s, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 

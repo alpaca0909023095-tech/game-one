@@ -1,6 +1,8 @@
-// 遊戲主流程基礎數值從 config.js 讀取。
+﻿// 遊戲主要流程與全域狀態，數值從 config.js 讀取。
 const COIN_PER_ENEMY = GAME_CONFIG.reward.coinPerEnemy;
 const LEVEL_DURATION = GAME_CONFIG.level.duration;
+const LEVEL_DURATION_GROWTH = GAME_CONFIG.level.durationGrowth;
+const LEVEL_HEAL_ON_START = GAME_CONFIG.level.healOnStart;
 const LEVEL_TEXT_DURATION = GAME_CONFIG.level.textDuration;
 
 const STAR_COUNT = GAME_CONFIG.background.starCount;
@@ -57,6 +59,10 @@ let shieldRespawnTimer = 0;
 let shieldOrbitAngle = 0;
 let enemyBRespawnTimer = 0;
 let enemyBGroupActive = 0;
+let enemyBGroupSpawnLeft = 0;
+let enemyBGroupSpawnIndex = 0;
+let enemyBGroupSpawnTotal = 0;
+let enemyBGroupSpawnTimer = 0;
 let coins = 0;
 
 let level = 1;
@@ -89,7 +95,7 @@ function distance(x1, y1, x2, y2) {
 
 
 function formatDebugError(error) {
-  if (!error) return "未知錯誤";
+  if (!error) return "?芰?航炊";
   if (error.stack) return error.stack;
   if (error.message) return error.message;
   return String(error);
@@ -127,15 +133,34 @@ function triggerCoinEffect() {
   coinText.classList.add("coinPop");
 }
 
+function getCurrentLevelDuration() {
+  return LEVEL_DURATION + Math.max(0, level - 1) * LEVEL_DURATION_GROWTH;
+}
+
+function healPlayerForNewLevel(newLevel) {
+  if (!player || newLevel <= 1 || LEVEL_HEAL_ON_START <= 0) return;
+  player.hp = clamp(player.hp + LEVEL_HEAL_ON_START, 0, PLAYER_MAX_HP);
+  updateHpBar();
+}
+
+function resetEnemyBGroupState() {
+  enemyBRespawnTimer = 0;
+  enemyBGroupActive = 0;
+  enemyBGroupSpawnLeft = 0;
+  enemyBGroupSpawnIndex = 0;
+  enemyBGroupSpawnTotal = 0;
+  enemyBGroupSpawnTimer = 0;
+}
+
 function startLevel(newLevel) {
+  healPlayerForNewLevel(newLevel);
   level = newLevel;
   levelStartTime = performance.now();
   levelText = "\u7b2c " + level + " \u95dc";
   levelTextTimer = LEVEL_TEXT_DURATION;
   levelNoSpawnTimer = LEVEL_NO_SPAWN_TIME;
   enemySpawnTimer = 0;
-  enemyBRespawnTimer = 0;
-  enemyBGroupActive = 0;
+  resetEnemyBGroupState();
   shootTimer = 0;
   resetHomingEggTimers();
   resetShockwaveTimers();
@@ -145,7 +170,7 @@ function startLevel(newLevel) {
   particles = [];
   shockwaves = [];
   resetShieldsForCurrentSkills();
-  timeNumber.textContent = LEVEL_DURATION + "s";
+  timeNumber.textContent = getCurrentLevelDuration() + "s";
 }
 
 function resetGame() {
@@ -162,8 +187,7 @@ function resetGame() {
   coinText.classList.remove("coinPop");
 
   enemySpawnTimer = 0;
-  enemyBRespawnTimer = 0;
-  enemyBGroupActive = 0;
+  resetEnemyBGroupState();
   shootTimer = 0;
   resetHomingEggTimers();
   resetShockwaveTimers();
@@ -171,7 +195,6 @@ function resetGame() {
   shields = [];
   shieldRespawnTimer = 0;
   shieldOrbitAngle = 0;
-  enemyBRespawnTimer = 0;
   lastTapTime = 0;
   lastTime = performance.now();
 
@@ -667,11 +690,12 @@ function updateLevelTimer(dt) {
   levelNoSpawnTimer -= dt;
 
   const elapsed = (performance.now() - levelStartTime) / 1000;
-  const remain = Math.max(0, Math.ceil(LEVEL_DURATION - elapsed));
+  const levelDuration = getCurrentLevelDuration();
+  const remain = Math.max(0, Math.ceil(levelDuration - elapsed));
 
   timeNumber.textContent = remain + "s";
 
-  if (elapsed >= LEVEL_DURATION) {
+  if (elapsed >= levelDuration) {
     openSkillPanel();
   }
 }
