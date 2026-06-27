@@ -33,16 +33,69 @@ const ENEMY_B_GROUP_SIZE_LEVEL_GROWTH = GAME_CONFIG.enemyB.groupSizeLevelGrowth;
 const ENEMY_B_CORE_RADIUS = GAME_CONFIG.enemyB.coreRadius;
 const ENEMY_B_PRE_ATTACK_PULSE_SCALE = GAME_CONFIG.enemyB.preAttackPulseScale;
 
+const ENEMY_C_START_LEVEL = GAME_CONFIG.enemyC.startLevel;
+const ENEMY_C_HP = GAME_CONFIG.enemyC.hp;
+const ENEMY_C_RADIUS = GAME_CONFIG.enemyC.radius;
+const ENEMY_C_SPEED = GAME_CONFIG.enemyC.speed;
+const ENEMY_C_DAMAGE_ON_HIT = GAME_CONFIG.enemyC.damageOnHit;
+const ENEMY_C_COLUMN_COUNT = GAME_CONFIG.enemyC.columnCount;
+const ENEMY_C_UNIT_GAP = GAME_CONFIG.enemyC.unitGap;
+const ENEMY_C_GROUP_COLUMNS = GAME_CONFIG.enemyC.groupColumns;
+const ENEMY_C_COLUMN_GAP = GAME_CONFIG.enemyC.columnGap;
+const ENEMY_C_GROUP_COOLDOWN = GAME_CONFIG.enemyC.groupCooldown;
+const ENEMY_C_SPAWN_SIDE_OFFSET = GAME_CONFIG.enemyC.spawnSideOffset;
+const ENEMY_C_SPAWN_Y_MIN_RATE = GAME_CONFIG.enemyC.spawnYMinRate;
+const ENEMY_C_SPAWN_Y_MAX_RATE = GAME_CONFIG.enemyC.spawnYMaxRate;
+const ENEMY_C_RANDOM_ANGLE_RANGE = GAME_CONFIG.enemyC.randomAngleRange;
+const ENEMY_C_TURN_TRIGGER_RADIUS_RATE = GAME_CONFIG.enemyC.turnTriggerRadiusRate;
+const ENEMY_C_TURN_STRENGTH = GAME_CONFIG.enemyC.turnStrength;
+const ENEMY_C_MAX_TURN_RATE = GAME_CONFIG.enemyC.maxTurnRate;
+const ENEMY_C_MAX_TURN_ANGLE = GAME_CONFIG.enemyC.maxTurnAngle;
+const ENEMY_C_CORE_RADIUS = GAME_CONFIG.enemyC.coreRadius;
+const ENEMY_C_CORE_PULSE_SPEED = GAME_CONFIG.enemyC.corePulseSpeed;
+const ENEMY_C_CORE_PULSE_SCALE = GAME_CONFIG.enemyC.corePulseScale;
+
 const LEVEL_NO_SPAWN_TIME = GAME_CONFIG.level.noSpawnTime;
 
+const ENEMY_COIN_REWARD_A = GAME_CONFIG.reward.coinPerEnemyA;
+const ENEMY_COIN_REWARD_B = GAME_CONFIG.reward.coinPerEnemyB;
+const ENEMY_COIN_REWARD_C = GAME_CONFIG.reward.coinPerEnemyC;
+const ENEMY_GOLD_CHANCE_A = GAME_CONFIG.reward.goldEnemyChanceA;
+const ENEMY_GOLD_CHANCE_B = GAME_CONFIG.reward.goldEnemyChanceB;
+const ENEMY_GOLD_CHANCE_C = GAME_CONFIG.reward.goldEnemyChanceC;
+const ENEMY_GOLD_MULTIPLIER = GAME_CONFIG.reward.goldEnemyMultiplier;
+const ENEMY_GOLD_STROKE_COLOR = GAME_CONFIG.reward.goldStrokeColor;
+const ENEMY_GOLD_STROKE_WIDTH = GAME_CONFIG.reward.goldStrokeWidth;
+
+function rollGoldEnemy(type) {
+  let chance = ENEMY_GOLD_CHANCE_A;
+  if (type === "B") chance = ENEMY_GOLD_CHANCE_B;
+  if (type === "C") chance = ENEMY_GOLD_CHANCE_C;
+  return Math.random() < chance ? 1 : 0;
+}
+
+function getEnemyBaseCoinReward(type) {
+  if (type === "B") return ENEMY_COIN_REWARD_B;
+  if (type === "C") return ENEMY_COIN_REWARD_C;
+  return ENEMY_COIN_REWARD_A;
+}
+
+function getEnemyCoinReward(type, isGold) {
+  const baseReward = getEnemyBaseCoinReward(type);
+  return Math.max(0, Math.floor(baseReward * (isGold ? ENEMY_GOLD_MULTIPLIER : 1)));
+}
 function nextEnemySpawnDelay() {
   const spawnMultiplier = 1 + Math.max(0, level - 1) * ENEMY_SPAWN_LEVEL_GROWTH;
   return rand(ENEMY_SPAWN_MIN_INTERVAL, ENEMY_SPAWN_MAX_INTERVAL) / spawnMultiplier;
 }
 
 function spawnEnemy() {
+  const gold = rollGoldEnemy("A");
+
   enemies.push({
     type: "A",
+    gold: gold,
+    coinReward: getEnemyCoinReward("A", gold),
     x: rand(45, W - 45),
     y: -60,
     r: ENEMY_RADIUS,
@@ -103,11 +156,14 @@ function setEnemyBMoveTarget(e) {
 }
 
 function spawnEnemyB(index = 0, total = 1) {
+  const gold = rollGoldEnemy("B");
   const x = getEnemyBHoverX(index, total);
   const hoverY = getEnemyBHoverY();
 
   enemies.push({
     type: "B",
+    gold: gold,
+    coinReward: getEnemyCoinReward("B", gold),
     x: x,
     y: -70,
     r: ENEMY_B_RADIUS,
@@ -133,6 +189,211 @@ function spawnEnemyB(index = 0, total = 1) {
   });
 }
 
+function getEnemyCSpawnX(side) {
+  return side === "left" ? -ENEMY_C_SPAWN_SIDE_OFFSET : W + ENEMY_C_SPAWN_SIDE_OFFSET;
+}
+
+function getEnemyCSpawnY() {
+  return rand(H * ENEMY_C_SPAWN_Y_MIN_RATE, H * ENEMY_C_SPAWN_Y_MAX_RATE);
+}
+
+function normalizeAngleDiff(angle) {
+  return Math.atan2(Math.sin(angle), Math.cos(angle));
+}
+
+function getEnemyCInitialAngle(side) {
+  const baseAngle = side === "left" ? 0 : Math.PI;
+  return baseAngle + rand(-ENEMY_C_RANDOM_ANGLE_RANGE, ENEMY_C_RANDOM_ANGLE_RANGE);
+}
+
+function getEnemyCPath(side) {
+  const startX = getEnemyCSpawnX(side);
+  const startY = getEnemyCSpawnY();
+  const angle = getEnemyCInitialAngle(side);
+
+  return {
+    x: startX,
+    y: startY,
+    angle: angle,
+    t: 0,
+    turnTriggered: 0,
+    turnedAmount: 0,
+    targetX: 0,
+    targetY: 0,
+    history: [{ t: 0, x: startX, y: startY, angle: angle }]
+  };
+}
+
+function updateEnemyCPath(path, dt) {
+  if (!path || path.done) return;
+
+  if (!path.turnTriggered && player) {
+    const triggerRadius = W * ENEMY_C_TURN_TRIGGER_RADIUS_RATE;
+    if (distance(path.x, path.y, player.x, player.y) <= triggerRadius) {
+      path.turnTriggered = 1;
+      path.targetX = player.x;
+      path.targetY = player.y;
+    }
+  }
+
+  if (path.turnTriggered && path.turnedAmount < ENEMY_C_MAX_TURN_ANGLE) {
+    const desiredAngle = Math.atan2(path.targetY - path.y, path.targetX - path.x);
+    const diff = normalizeAngleDiff(desiredAngle - path.angle);
+    const maxStep = ENEMY_C_MAX_TURN_RATE * dt;
+    let step = clamp(diff * ENEMY_C_TURN_STRENGTH * dt, -maxStep, maxStep);
+    const remain = ENEMY_C_MAX_TURN_ANGLE - path.turnedAmount;
+
+    if (Math.abs(step) > remain) step = Math.sign(step) * remain;
+    path.angle += step;
+    path.turnedAmount += Math.abs(step);
+  }
+
+  path.x += Math.cos(path.angle) * ENEMY_C_SPEED * dt;
+  path.y += Math.sin(path.angle) * ENEMY_C_SPEED * dt;
+  path.t += dt;
+  path.history.push({ t: path.t, x: path.x, y: path.y, angle: path.angle });
+
+  if (path.x < -140 || path.x > W + 140 || path.y < -140 || path.y > H + 140) {
+    path.done = 1;
+  }
+}
+
+function sampleEnemyCPath(path, age) {
+  if (!path || !path.history || path.history.length <= 0) return null;
+
+  const history = path.history;
+  if (age <= 0) return history[0];
+  if (age >= history[history.length - 1].t) return history[history.length - 1];
+
+  for (let i = 1; i < history.length; i++) {
+    const prev = history[i - 1];
+    const next = history[i];
+    if (age <= next.t) {
+      const rate = clamp((age - prev.t) / Math.max(0.001, next.t - prev.t), 0, 1);
+      const angle = prev.angle + normalizeAngleDiff(next.angle - prev.angle) * rate;
+      return {
+        x: prev.x + (next.x - prev.x) * rate,
+        y: prev.y + (next.y - prev.y) * rate,
+        angle: angle
+      };
+    }
+  }
+
+  return history[history.length - 1];
+}
+
+function spawnEnemyCUnit(path) {
+  const gold = rollGoldEnemy("C");
+  const start = sampleEnemyCPath(path, 0) || path;
+
+  enemies.push({
+    type: "C",
+    gold: gold,
+    coinReward: getEnemyCoinReward("C", gold),
+    x: start.x,
+    y: start.y,
+    r: ENEMY_C_RADIUS,
+    hp: ENEMY_C_HP,
+    maxHp: ENEMY_C_HP,
+    speed: ENEMY_C_SPEED,
+    path: path,
+    pathAge: 0,
+    angle: start.angle,
+    damageOnHit: ENEMY_C_DAMAGE_ON_HIT,
+    hitShake: 0
+  });
+}
+
+function createEnemyCColumnQueue(index, firstSide) {
+  const side = index % 2 === 0 ? firstSide : (firstSide === "left" ? "right" : "left");
+
+  return {
+    side: side,
+    startTimer: index * ENEMY_C_COLUMN_GAP,
+    unitTimer: 0,
+    unitsLeft: ENEMY_C_COLUMN_COUNT,
+    path: null
+  };
+}
+
+function startEnemyCGroup() {
+  enemyCGroupActive = 1;
+  enemyCGroupFirstSide = Math.random() < 0.5 ? "left" : "right";
+  enemyCColumnQueues = [];
+
+  for (let i = 0; i < ENEMY_C_GROUP_COLUMNS; i++) {
+    enemyCColumnQueues.push(createEnemyCColumnQueue(i, enemyCGroupFirstSide));
+  }
+}
+
+function updateEnemyCSpawner(dt) {
+  if (level < ENEMY_C_START_LEVEL) return;
+  if (levelNoSpawnTimer > 0) return;
+
+  if (!enemyCGroupActive) {
+    enemyCGroupTimer -= dt;
+    if (enemyCGroupTimer <= 0) startEnemyCGroup();
+    return;
+  }
+
+  for (let queue of enemyCColumnQueues) {
+    if (queue.done) continue;
+
+    if (queue.startTimer > 0) {
+      queue.startTimer -= dt;
+      if (queue.startTimer > 0) continue;
+    }
+
+    if (!queue.path) queue.path = getEnemyCPath(queue.side);
+
+    queue.unitTimer -= dt;
+    while (queue.unitsLeft > 0 && queue.unitTimer <= 0) {
+      spawnEnemyCUnit(queue.path);
+      queue.unitsLeft--;
+      queue.unitTimer += ENEMY_C_UNIT_GAP;
+    }
+
+    if (queue.unitsLeft <= 0) queue.done = 1;
+  }
+
+  enemyCColumnQueues = enemyCColumnQueues.filter(queue => !queue.done);
+
+  if (enemyCColumnQueues.length <= 0) {
+    enemyCGroupActive = 0;
+    enemyCGroupTimer = ENEMY_C_GROUP_COOLDOWN;
+  }
+}
+
+function updateEnemyCSharedPaths(dt) {
+  const paths = [];
+
+  for (let queue of enemyCColumnQueues) {
+    if (queue.path && paths.indexOf(queue.path) < 0) paths.push(queue.path);
+  }
+
+  for (let e of enemies) {
+    if (!e.dead && e.type === "C" && e.path && paths.indexOf(e.path) < 0) paths.push(e.path);
+  }
+
+  for (let path of paths) {
+    updateEnemyCPath(path, dt);
+  }
+}
+
+function updateEnemyC(e, dt) {
+  e.pathAge += dt;
+  const point = sampleEnemyCPath(e.path, e.pathAge);
+
+  if (point) {
+    e.x = point.x;
+    e.y = point.y;
+    e.angle = point.angle;
+  }
+
+  if (e.x < -120 || e.x > W + 120 || e.y < -120 || e.y > H + 120) {
+    e.dead = 1;
+  }
+}
 function getEnemyBGroupSize() {
   const levelBonus = Math.max(0, level - ENEMY_B_START_LEVEL) * ENEMY_B_GROUP_SIZE_LEVEL_GROWTH;
   return Math.max(1, Math.floor(ENEMY_B_GROUP_SIZE + levelBonus));
@@ -290,16 +551,24 @@ function updateEnemyB(e, dt) {
 
 function updateEnemyActions(dt) {
   updateEnemyBSpawner(dt);
+  updateEnemyCSpawner(dt);
+  updateEnemyCSharedPaths(dt);
 
   for (let e of enemies) {
     if (e.dead) continue;
     if (e.type === "B") updateEnemyB(e, dt);
+    if (e.type === "C") updateEnemyC(e, dt);
   }
 }
 
 function drawEnemy(e) {
   if (e.type === "B") {
     drawEnemyB(e);
+    return;
+  }
+
+  if (e.type === "C") {
+    drawEnemyC(e);
     return;
   }
 
@@ -326,10 +595,65 @@ function drawEnemy(e) {
   ctx.closePath();
   ctx.fill();
 
+  if (e.gold) {
+    ctx.strokeStyle = ENEMY_GOLD_STROKE_COLOR;
+    ctx.lineWidth = ENEMY_GOLD_STROKE_WIDTH;
+    ctx.stroke();
+  }
+
   ctx.fillStyle = "#ffd1d8";
   ctx.beginPath();
   ctx.arc(0, -3 * s, 6 * s, 0, Math.PI * 2);
   ctx.fill();
+
+  ctx.restore();
+  drawEnemyHpBar(e, shakeX, shakeY);
+}
+
+function drawEnemyC(e) {
+  const s = e.r / 12;
+  let shakeX = 0;
+  let shakeY = 0;
+
+  if (e.hitShake > 0) {
+    const rate = e.hitShake / ENEMY_HIT_SHAKE_TIME;
+    const power = ENEMY_HIT_SHAKE_POWER * rate;
+    shakeX = rand(-power, power);
+    shakeY = rand(-power * 0.55, power * 0.55);
+  }
+
+  ctx.save();
+  ctx.translate(e.x + shakeX, e.y + shakeY);
+  ctx.rotate((e.angle || Math.PI / 2) - Math.PI / 2);
+
+  ctx.fillStyle = "#4b1232";
+  ctx.beginPath();
+  ctx.moveTo(0, 18 * s);
+  ctx.lineTo(-13 * s, -13 * s);
+  ctx.lineTo(0, -8 * s);
+  ctx.lineTo(13 * s, -13 * s);
+  ctx.closePath();
+  ctx.fill();
+
+  if (e.gold) {
+    ctx.strokeStyle = ENEMY_GOLD_STROKE_COLOR;
+    ctx.lineWidth = ENEMY_GOLD_STROKE_WIDTH;
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = "#2a061d";
+  ctx.fillRect(-4 * s, -4 * s, 8 * s, 12 * s);
+
+  const pulse = 1 + (0.5 + Math.sin(performance.now() / 1000 * ENEMY_C_CORE_PULSE_SPEED) * 0.5) * ENEMY_C_CORE_PULSE_SCALE;
+  ctx.save();
+  ctx.scale(pulse, pulse);
+  ctx.fillStyle = "#ff2b3d";
+  ctx.shadowColor = "#ff2442";
+  ctx.shadowBlur = 10 * s;
+  ctx.beginPath();
+  ctx.arc(0, 4 * s, ENEMY_C_CORE_RADIUS * s, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 
   ctx.restore();
   drawEnemyHpBar(e, shakeX, shakeY);
@@ -370,6 +694,12 @@ function drawEnemyB(e) {
   ctx.closePath();
   ctx.fill();
 
+  if (e.gold) {
+    ctx.strokeStyle = ENEMY_GOLD_STROKE_COLOR;
+    ctx.lineWidth = ENEMY_GOLD_STROKE_WIDTH;
+    ctx.stroke();
+  }
+
   ctx.fillStyle = "#d8dcff";
   ctx.fillRect(-10 * s, -5 * s, 20 * s, 11 * s);
 
@@ -394,6 +724,10 @@ function drawEnemyHpBar(e, shakeX, shakeY) {
   ctx.fillStyle = "rgba(255,255,255,0.25)";
   ctx.fillRect(e.x - barW / 2 + shakeX, e.y - e.r - 15 + shakeY, barW, barH);
 
-  ctx.fillStyle = e.type === "B" ? "#95a0ff" : "#8cff7a";
+  ctx.fillStyle = e.type === "B" ? "#95a0ff" : (e.type === "C" ? "#ffe36d" : "#8cff7a");
   ctx.fillRect(e.x - barW / 2 + shakeX, e.y - e.r - 15 + shakeY, barW * hpRate, barH);
 }
+
+
+
+

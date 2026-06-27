@@ -1,4 +1,4 @@
-// 升級 UI 基礎數值從 config.js 讀取。
+﻿// 升級 UI 基礎數值從 game_config.js 讀取。
 const SKILL_CARD_ENTER_DELAY = GAME_CONFIG.upgradeUi.cardEnterDelay;
 const SKILL_CARD_EXIT_DELAY = GAME_CONFIG.upgradeUi.cardExitDelay;
 const SKILL_PANEL_EXIT_TOTAL_TIME = GAME_CONFIG.upgradeUi.panelExitTotalTime;
@@ -20,7 +20,6 @@ function updateUpgradeCoinText() {
 function setupUpgradeCard(card, skillDef) {
   const price = getSkillPrice(skillDef);
   card.dataset.skillId = skillDef.id;
-  card.dataset.level = skillDef.level;
   card.dataset.price = price;
   card.dataset.bought = "0";
 
@@ -41,7 +40,6 @@ function setupUpgradeCard(card, skillDef) {
   priceNode.textContent = price;
 
   card.classList.remove("upgradeLevel1", "upgradeLevel2", "upgradeLevel3");
-  card.classList.add("upgradeLevel" + skillDef.level);
 }
 
 function isCardAvailable(card) {
@@ -235,7 +233,6 @@ function closeSkillPanelInstant() {
     card.classList.remove("enter", "settled", "exit", "selected", "clickable", "unaffordable", "notEnough", "upgradeLevel1", "upgradeLevel2", "upgradeLevel3");
     card.style.pointerEvents = "none";
     card.dataset.bought = "0";
-    card.dataset.level = "0";
     card.dataset.skillId = "";
   }
 
@@ -294,9 +291,4 @@ function bindSkillCards() {
     });
   }
 }
-
-
-
-
-
 

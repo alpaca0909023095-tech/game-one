@@ -1,12 +1,14 @@
-// 玩家基礎數值從 config.js 讀取。
+﻿// 玩家基礎數值從 config.js 讀取。
 const FINGER_OFFSET_Y = GAME_CONFIG.player.fingerOffsetY;
 
 const PLAYER_MAX_HP = GAME_CONFIG.player.maxHp;
 const PLAYER_RADIUS = GAME_CONFIG.player.radius;
+const PLAYER_MODEL_SCALE = GAME_CONFIG.player.modelScale;
 const PLAYER_START_Y_RATE = GAME_CONFIG.player.startYRate;
 
 const PLAYER_FOLLOW_STRENGTH = GAME_CONFIG.player.followStrength;
 const PLAYER_FOLLOW_DAMPING = GAME_CONFIG.player.followDamping;
+const PLAYER_DRAG_MOVE_SCALE = GAME_CONFIG.player.dragMoveScale;
 
 const PLAYER_DAMAGE_ON_HIT = GAME_CONFIG.player.damageOnHit;
 const PLAYER_HIT_SHAKE_TIME = GAME_CONFIG.player.hitShakeTime;
@@ -45,6 +47,13 @@ function setPlayerTarget(clientX, clientY) {
 
   player.targetX = clamp(targetX, player.r, W - player.r);
   player.targetY = clamp(targetY, player.r + 55, H - player.r);
+}
+
+function movePlayerTargetBy(deltaX, deltaY) {
+  if (!running) return;
+
+  player.targetX = clamp(player.targetX + deltaX * PLAYER_DRAG_MOVE_SCALE, player.r, W - player.r);
+  player.targetY = clamp(player.targetY + deltaY * PLAYER_DRAG_MOVE_SCALE, player.r + 55, H - player.r);
 }
 
 function updatePlayerMovement(dt) {
@@ -124,7 +133,7 @@ function drawPlayer() {
   ctx.save();
   ctx.globalAlpha = invincibleBlink ? 0.45 : 1;
   ctx.translate(player.x + shakeX, player.y + shakeY);
-  ctx.scale(scale, scale);
+  ctx.scale(scale * PLAYER_MODEL_SCALE, scale * PLAYER_MODEL_SCALE);
 
   ctx.fillStyle = mainColor;
   ctx.beginPath();

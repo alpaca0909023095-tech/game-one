@@ -1,5 +1,12 @@
 ﻿// 遊戲主要流程與全域狀態，數值從 config.js 讀取。
-const COIN_PER_ENEMY = GAME_CONFIG.reward.coinPerEnemy;
+const COIN_DROP_SCATTER = GAME_CONFIG.reward.coinDropScatter;
+const COIN_DROP_SPEED_MIN = GAME_CONFIG.reward.coinDropSpeedMin;
+const COIN_DROP_SPEED_MAX = GAME_CONFIG.reward.coinDropSpeedMax;
+const COIN_FALL_SPEED = GAME_CONFIG.reward.coinFallSpeed;
+const COIN_MAGNET_RADIUS = GAME_CONFIG.reward.coinMagnetRadius;
+const COIN_COLLECT_RADIUS = GAME_CONFIG.reward.coinCollectRadius;
+const COIN_MAGNET_SPEED = GAME_CONFIG.reward.coinMagnetSpeed;
+const COIN_DROP_SIZE = GAME_CONFIG.reward.coinSize;
 const LEVEL_DURATION = GAME_CONFIG.level.duration;
 const LEVEL_DURATION_GROWTH = GAME_CONFIG.level.durationGrowth;
 const LEVEL_HEAL_ON_START = GAME_CONFIG.level.healOnStart;
@@ -38,6 +45,7 @@ let bullets = [];
 let enemyBullets = [];
 let enemies = [];
 let particles = [];
+let coinDrops = [];
 let shockwaves = [];
 
 let shields = [];
@@ -63,6 +71,16 @@ let enemyBGroupSpawnLeft = 0;
 let enemyBGroupSpawnIndex = 0;
 let enemyBGroupSpawnTotal = 0;
 let enemyBGroupSpawnTimer = 0;
+let enemyCGroupTimer = 0;
+let enemyCGroupActive = 0;
+let enemyCColumnsLeft = 0;
+let enemyCColumnTimer = 0;
+let enemyCUnitsLeft = 0;
+let enemyCUnitTimer = 0;
+let enemyCPath = null;
+let enemyCColumnIndex = 0;
+let enemyCGroupFirstSide = "left";
+let enemyCColumnQueues = [];
 let coins = 0;
 
 let level = 1;
@@ -152,6 +170,19 @@ function resetEnemyBGroupState() {
   enemyBGroupSpawnTimer = 0;
 }
 
+function resetEnemyCGroupState() {
+  enemyCGroupTimer = 0;
+  enemyCGroupActive = 0;
+  enemyCColumnsLeft = 0;
+  enemyCColumnTimer = 0;
+  enemyCUnitsLeft = 0;
+  enemyCUnitTimer = 0;
+  enemyCPath = null;
+  enemyCColumnIndex = 0;
+  enemyCGroupFirstSide = "left";
+  enemyCColumnQueues = [];
+}
+
 function startLevel(newLevel) {
   healPlayerForNewLevel(newLevel);
   level = newLevel;
@@ -161,6 +192,7 @@ function startLevel(newLevel) {
   levelNoSpawnTimer = LEVEL_NO_SPAWN_TIME;
   enemySpawnTimer = 0;
   resetEnemyBGroupState();
+  resetEnemyCGroupState();
   shootTimer = 0;
   resetHomingEggTimers();
   resetShockwaveTimers();
@@ -168,6 +200,7 @@ function startLevel(newLevel) {
   enemyBullets = [];
   enemies = [];
   particles = [];
+  coinDrops = [];
   shockwaves = [];
   resetShieldsForCurrentSkills();
   timeNumber.textContent = getCurrentLevelDuration() + "s";
@@ -181,6 +214,7 @@ function resetGame() {
   enemyBullets = [];
   enemies = [];
   particles = [];
+  coinDrops = [];
 
   coins = 0;
   coinNumber.textContent = coins;
@@ -188,6 +222,7 @@ function resetGame() {
 
   enemySpawnTimer = 0;
   resetEnemyBGroupState();
+  resetEnemyCGroupState();
   shootTimer = 0;
   resetHomingEggTimers();
   resetShockwaveTimers();
@@ -267,16 +302,23 @@ function bindInput() {
     if (!running) return;
 
     touching = 1;
+    lastInputX = e.clientX;
+    lastInputY = e.clientY;
     if (canvas.setPointerCapture && e.pointerId !== undefined) {
       canvas.setPointerCapture(e.pointerId);
     }
-    setPlayerTarget(e.clientX, e.clientY);
     checkDoubleTap();
   }
 
   function movePointerControl(e) {
     e.preventDefault();
-    if (touching && running) setPlayerTarget(e.clientX, e.clientY);
+    if (!touching || !running) return;
+
+    const deltaX = e.clientX - lastInputX;
+    const deltaY = e.clientY - lastInputY;
+    lastInputX = e.clientX;
+    lastInputY = e.clientY;
+    movePlayerTargetBy(deltaX, deltaY);
   }
 
   function endPointerControl(e) {
@@ -303,16 +345,21 @@ function bindInput() {
 
     touching = 1;
     const t = e.touches[0];
-    setPlayerTarget(t.clientX, t.clientY);
+    lastInputX = t.clientX;
+    lastInputY = t.clientY;
     checkDoubleTap();
   }, { passive: false });
 
   canvas.addEventListener("touchmove", e => {
     e.preventDefault();
-    if (!running) return;
+    if (!touching || !running) return;
 
     const t = e.touches[0];
-    setPlayerTarget(t.clientX, t.clientY);
+    const deltaX = t.clientX - lastInputX;
+    const deltaY = t.clientY - lastInputY;
+    lastInputX = t.clientX;
+    lastInputY = t.clientY;
+    movePlayerTargetBy(deltaX, deltaY);
   }, { passive: false });
 
   canvas.addEventListener("touchend", e => {
@@ -324,12 +371,19 @@ function bindInput() {
     if (!running) return;
 
     touching = 1;
-    setPlayerTarget(e.clientX, e.clientY);
+    lastInputX = e.clientX;
+    lastInputY = e.clientY;
     checkDoubleTap();
   });
 
   window.addEventListener("mousemove", e => {
-    if (touching && running) setPlayerTarget(e.clientX, e.clientY);
+    if (!touching || !running) return;
+
+    const deltaX = e.clientX - lastInputX;
+    const deltaY = e.clientY - lastInputY;
+    lastInputX = e.clientX;
+    lastInputY = e.clientY;
+    movePlayerTargetBy(deltaX, deltaY);
   });
 
   window.addEventListener("mouseup", () => {
@@ -352,13 +406,40 @@ function createExplosion(x, y, scale = 1) {
   }
 }
 
+function spawnCoinDrops(x, y, amount) {
+  const count = Math.max(0, Math.floor(amount));
+
+  for (let i = 0; i < count; i++) {
+    const angle = rand(0, Math.PI * 2);
+    const scatter = rand(0, COIN_DROP_SCATTER);
+    const speed = rand(COIN_DROP_SPEED_MIN, COIN_DROP_SPEED_MAX);
+
+    coinDrops.push({
+      x: x + Math.cos(angle) * scatter,
+      y: y + Math.sin(angle) * scatter,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      value: 1,
+      r: COIN_DROP_SIZE,
+      magnet: 0
+    });
+  }
+}
+
+function collectCoinDrop(drop) {
+  if (drop.dead) return;
+  drop.dead = 1;
+  coins += drop.value || 1;
+  coinNumber.textContent = coins;
+  triggerCoinEffect();
+}
+
 function killEnemy(enemy, explosionScale = 1.3) {
   if (!enemy || enemy.dead) return;
 
   enemy.dead = 1;
-  coins += COIN_PER_ENEMY;
-  coinNumber.textContent = coins;
-  triggerCoinEffect();
+  const reward = enemy.coinReward !== undefined ? enemy.coinReward : 0;
+  if (reward > 0) spawnCoinDrops(enemy.x, enemy.y, reward);
   createExplosion(enemy.x, enemy.y, explosionScale);
 
   if (enemy.type === "B") {
@@ -700,26 +781,36 @@ function updateLevelTimer(dt) {
   }
 }
 
+function damagePlayer(amount) {
+  if (player.invincible > 0) return;
+
+  player.hp -= amount;
+  player.invincible = 0.7;
+
+  triggerHpHitEffect();
+  triggerPlayerHitShake();
+  createExplosion(player.x, player.y, 1.1);
+
+  if (player.hp <= 0) {
+    player.hp = 0;
+    running = 0;
+    finalText.innerHTML = "本次成績<br>關卡：" + level + "<br>金幣：" + coins;
+    gameOverPanel.style.display = "flex";
+  }
+}
+
 function updateEnemyCollision(dt) {
   for (let e of enemies) {
-    if (e.type !== "B") e.y += e.speed * dt;
+    if (e.type !== "B" && e.type !== "C") e.y += e.speed * dt;
     e.hitShake -= dt;
 
     if (distance(player.x, player.y, e.x, e.y) < player.r + e.r) {
-      if (player.invincible <= 0) {
-        player.hp -= PLAYER_DAMAGE_ON_HIT;
-        player.invincible = 0.7;
+      const damage = e.damageOnHit || PLAYER_DAMAGE_ON_HIT;
+      damagePlayer(damage);
 
-        triggerHpHitEffect();
-        triggerPlayerHitShake();
-        createExplosion(player.x, player.y, 1.1);
-
-        if (player.hp <= 0) {
-          player.hp = 0;
-          running = 0;
-          finalText.innerHTML = "本次成績<br>關卡：" + level + "<br>金幣：" + coins;
-          gameOverPanel.style.display = "flex";
-        }
+      if (e.type === "C") {
+        e.dead = 1;
+        createExplosion(e.x, e.y, 0.8);
       }
     }
   }
@@ -784,6 +875,37 @@ function updateBullets(dt) {
   bullets = bullets.filter(b => b.life > 0 && b.y > -80 && b.y < H + 100 && b.x > -100 && b.x < W + 100);
 }
 
+function updateCoinDrops(dt) {
+  if (!player || coinDrops.length <= 0) return;
+
+  for (let drop of coinDrops) {
+    const dx = player.x - drop.x;
+    const dy = player.y - drop.y;
+    const d = Math.max(0.001, Math.hypot(dx, dy));
+
+    const collectDistance = player.r + drop.r + COIN_COLLECT_RADIUS;
+    if (d <= collectDistance) {
+      collectCoinDrop(drop);
+      continue;
+    }
+
+    if (d <= COIN_MAGNET_RADIUS || drop.magnet) {
+      drop.magnet = 1;
+      drop.vx = dx / d * COIN_MAGNET_SPEED;
+      drop.vy = dy / d * COIN_MAGNET_SPEED;
+    } else if (!drop.magnet) {
+      drop.vx *= 0.92;
+      drop.vy = drop.vy * 0.92 + COIN_FALL_SPEED * 0.08;
+    }
+
+    drop.x += drop.vx * dt;
+    drop.y += drop.vy * dt;
+
+    if (!drop.magnet) drop.y += COIN_FALL_SPEED * dt;
+  }
+
+  coinDrops = coinDrops.filter(drop => !drop.dead && drop.y < H + 80 && drop.x > -80 && drop.x < W + 80);
+}
 function updateParticles(dt) {
   for (let p of particles) {
     p.x += p.vx * dt;
@@ -827,8 +949,9 @@ function update(dt) {
   updateEnemyCollision(dt);
   updateBullets(dt);
 
-  enemies = enemies.filter(e => !e.dead && e.y < H + 90);
+  enemies = enemies.filter(e => !e.dead && e.y < H + 120 && e.x > -120 && e.x < W + 120);
 
+  updateCoinDrops(dt);
   updateParticles(dt);
   updateHpBar();
 }
@@ -862,6 +985,25 @@ function drawBackground() {
   }
 }
 
+function drawCoinDrops() {
+  for (let drop of coinDrops) {
+    ctx.save();
+    ctx.translate(drop.x, drop.y);
+    ctx.fillStyle = "#ffd23c";
+    ctx.shadowColor = "rgba(255,210,60,0.7)";
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(0, 0, drop.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.beginPath();
+    ctx.arc(-drop.r * 0.25, -drop.r * 0.3, drop.r * 0.28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
 function drawParticles() {
   for (let p of particles) {
     ctx.globalAlpha = Math.max(0, p.life * 3);
@@ -908,6 +1050,7 @@ function draw() {
   drawBackground();
   drawShockwaves();
   drawParticles();
+  drawCoinDrops();
 
   for (let b of enemyBullets) {
     drawEnemyBullet(b);
@@ -960,6 +1103,16 @@ resize();
 window.addEventListener("resize", resize);
 bindInput();
 requestAnimationFrame(loop);
+
+
+
+
+
+
+
+
+
+
 
 
 

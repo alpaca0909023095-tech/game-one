@@ -80,7 +80,6 @@ const SKILL_POOL = [
   {
     id: "shockwave_1",
     name: "衝擊波",
-    level: 1,
     description: "連放後等待 5 秒",
     apply: function () {
       playerMods.shockwave.count += SHOCKWAVE_COUNT_PER_PURCHASE;
@@ -89,7 +88,6 @@ const SKILL_POOL = [
   {
     id: "homing_egg_1",
     name: "追蹤蛋",
-    level: 1,
     description: "連射後等待 4 秒",
     apply: function () {
       playerMods.homingEgg.count += HOMING_EGG_COUNT_PER_PURCHASE;
@@ -98,7 +96,6 @@ const SKILL_POOL = [
   {
     id: "speed_shoot_2",
     name: "加速射擊",
-    level: 2,
     description: "普通攻速 +20%",
     apply: function () {
       playerMods.normalBullet.shootIntervalMultiplier *= SPEED_SHOOT_INTERVAL_MULTIPLIER;
@@ -107,7 +104,6 @@ const SKILL_POOL = [
   {
     id: "fire_team_3",
     name: "火力班",
-    level: 3,
     description: "普通彈道 +1",
     apply: function () {
       playerMods.normalBullet.laneBonus += FIRE_TEAM_LANE_BONUS;
@@ -116,7 +112,6 @@ const SKILL_POOL = [
   {
     id: "shield_3",
     name: "護盾",
-    level: 3,
     description: "環繞方塊護盾 +1",
     apply: function () {
       playerMods.shield.count += SHIELD_COUNT_PER_PURCHASE;
@@ -125,7 +120,6 @@ const SKILL_POOL = [
   {
     id: "shield_amplifier_1",
     name: "護盾放大器",
-    level: 1,
     description: "護盾尺寸 +25%",
     requires: {
       mod: "shield",
@@ -152,8 +146,26 @@ function resetSkillState() {
   purchasedSkills = [];
 }
 
+function getSkillBasePrice(skillDef) {
+  const prices = GAME_CONFIG.upgradeUi.skillBasePrice || {};
+  const skillPriceConfig = GAME_CONFIG.upgradeUi.skillPrice || {};
+  const defaultPrice = skillPriceConfig.defaultBasePrice || 10;
+  return prices[skillDef.id] !== undefined ? prices[skillDef.id] : defaultPrice;
+}
+
+function roundSkillPrice(value, unit) {
+  const safeUnit = Math.max(1, unit || 10);
+  return Math.max(safeUnit, Math.round(value / safeUnit) * safeUnit);
+}
+
 function getSkillPrice(skillDef) {
-  return GAME_CONFIG.upgradeUi.levelPrices[skillDef.level - 1];
+  const priceConfig = GAME_CONFIG.upgradeUi.skillPrice || {};
+  const basePrice = getSkillBasePrice(skillDef);
+  const increaseRate = priceConfig.perLevelIncreaseRate !== undefined ? priceConfig.perLevelIncreaseRate : 0.3;
+  const rawPrice = basePrice * (1 + Math.max(0, level - 1) * increaseRate);
+  const threshold = priceConfig.highPriceThreshold !== undefined ? priceConfig.highPriceThreshold : 200;
+  const unit = rawPrice > threshold ? priceConfig.highPriceRoundTo : priceConfig.roundTo;
+  return roundSkillPrice(rawPrice, unit || 10);
 }
 
 function isSkillEnabledForUi(skillDef) {
@@ -175,9 +187,6 @@ function canSkillAppearInUpgrade(skillDef) {
   return isSkillEnabledForUi(skillDef) && isSkillRequirementMet(skillDef) ? 1 : 0;
 }
 
-function getSkillsByLevel(level) {
-  return SKILL_POOL.filter(skillDef => skillDef.level === level && canSkillAppearInUpgrade(skillDef));
-}
 
 function pickRandomFromList(list) {
   return list[Math.floor(rand(0, list.length))];
@@ -198,7 +207,6 @@ function pickUpgradeSkill(usedIds) {
   return {
     id: "empty_skill",
     name: "待新增技能",
-    level: 1,
     description: "尚未設定效果",
     apply: function () {}
   };
@@ -276,3 +284,5 @@ function getCurrentShieldSize() {
 function getCurrentShieldCollisionRadius() {
   return SHIELD_COLLISION_RADIUS * playerMods.shield.sizeMultiplier;
 }
+
+

@@ -1,10 +1,10 @@
-﻿const CACHE_NAME = "game-one-v6-enemy-b5";
+﻿const CACHE_NAME = "game-one-v17-skill-price-v1";
 
 const CORE_ASSETS = [
   "./",
   "./index.html",
   "./style.css",
-  "./config.js",
+  "./game_config.js",
   "./player.js",
   "./enemy.js",
   "./bullet.js",
@@ -88,3 +88,4 @@ function fetchAndCache(request) {
       throw error;
     });
 }
+
