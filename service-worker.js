@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = "game-one-v17-skill-price-v1";
+﻿const CACHE_NAME = "game-one-v25-boss-clear-fix-v1";
 
 const CORE_ASSETS = [
   "./",
@@ -88,4 +88,7 @@ function fetchAndCache(request) {
       throw error;
     });
 }
+
+
+
 

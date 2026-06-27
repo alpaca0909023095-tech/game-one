@@ -1,5 +1,5 @@
 ﻿// 技能資料與效果系統。
-// 之後新增技能時，主要改 SKILL_POOL：name 是 UI 名稱，level 決定價格，apply 是購買後效果。
+// 之後新增技能時，主要改 SKILL_POOL：name 是 UI 名稱，id 對應 game_config.js 的 skillBasePrice / skillAppear。
 // 數值加成分區：normalBullet 只影響普通白色子彈；homingEgg 只影響追蹤蛋；skillBullet 只影響雙擊技能彈；shield 只影響護盾。
 const SPEED_SHOOT_INTERVAL_MULTIPLIER = GAME_CONFIG.skills.speedShoot.shootIntervalMultiplier;
 const FIRE_TEAM_LANE_BONUS = GAME_CONFIG.skills.fireTeam.laneBonus;
@@ -48,6 +48,10 @@ const SHIELD_SHADOW_BLUR = GAME_CONFIG.skills.shield.shadowBlur;
 const SHIELD_SELF_ROTATE_SPEED = GAME_CONFIG.skills.shield.selfRotateSpeed;
 const SHIELD_AMPLIFIER_SIZE_MULTIPLIER = GAME_CONFIG.skills.shield.amplifierSizeMultiplier;
 
+const HEALTH_POTION_MISSING_HP_HEAL_RATE = GAME_CONFIG.skills.healthPotion.missingHpHealRate;
+const KILL_HEAL_CHANCE = GAME_CONFIG.skills.killHeal.chance;
+const KILL_HEAL_PER_STACK = GAME_CONFIG.skills.killHeal.healPerStack;
+
 const PLAYER_MODS_BASE = {
   normalBullet: {
     shootIntervalMultiplier: 1,
@@ -70,6 +74,9 @@ const PLAYER_MODS_BASE = {
   shield: {
     count: 0,
     sizeMultiplier: 1
+  },
+  killHeal: {
+    stacks: 0
   }
 };
 
@@ -128,6 +135,22 @@ const SKILL_POOL = [
     apply: function () {
       playerMods.shield.sizeMultiplier *= SHIELD_AMPLIFIER_SIZE_MULTIPLIER;
     }
+  },
+  {
+    id: "health_potion",
+    name: "血瓶",
+    description: "回復一半已損血量",
+    apply: function () {
+      healPlayerByMissingHpRate(HEALTH_POTION_MISSING_HP_HEAL_RATE);
+    }
+  },
+  {
+    id: "kill_heal",
+    name: "擊殺回血",
+    description: "擊殺時 50% 回血，重複取得每層 +1",
+    apply: function () {
+      playerMods.killHeal.stacks += 1;
+    }
   }
 ];
 
@@ -137,7 +160,8 @@ function createBasePlayerMods() {
     homingEgg: Object.assign({}, PLAYER_MODS_BASE.homingEgg),
     skillBullet: Object.assign({}, PLAYER_MODS_BASE.skillBullet),
     shockwave: Object.assign({}, PLAYER_MODS_BASE.shockwave),
-    shield: Object.assign({}, PLAYER_MODS_BASE.shield)
+    shield: Object.assign({}, PLAYER_MODS_BASE.shield),
+    killHeal: Object.assign({}, PLAYER_MODS_BASE.killHeal)
   };
 }
 
@@ -187,7 +211,6 @@ function canSkillAppearInUpgrade(skillDef) {
   return isSkillEnabledForUi(skillDef) && isSkillRequirementMet(skillDef) ? 1 : 0;
 }
 
-
 function pickRandomFromList(list) {
   return list[Math.floor(rand(0, list.length))];
 }
@@ -231,6 +254,25 @@ function applyPurchasedSkill(skillId) {
 
   skillDef.apply();
   purchasedSkills.push(skillId);
+}
+
+function healPlayerAmount(amount) {
+  if (!player || amount <= 0) return;
+  player.hp = clamp(player.hp + amount, 0, PLAYER_MAX_HP);
+  updateHpBar();
+}
+
+function healPlayerByMissingHpRate(rate) {
+  if (!player || rate <= 0) return;
+  const missingHp = Math.max(0, PLAYER_MAX_HP - player.hp);
+  healPlayerAmount(Math.ceil(missingHp * rate));
+}
+
+function tryApplyKillHeal() {
+  const stacks = playerMods.killHeal ? playerMods.killHeal.stacks : 0;
+  if (stacks <= 0) return;
+  if (Math.random() > KILL_HEAL_CHANCE) return;
+  healPlayerAmount(stacks * KILL_HEAL_PER_STACK);
 }
 
 function getCurrentShootInterval() {
@@ -284,5 +326,3 @@ function getCurrentShieldSize() {
 function getCurrentShieldCollisionRadius() {
   return SHIELD_COLLISION_RADIUS * playerMods.shield.sizeMultiplier;
 }
-
-

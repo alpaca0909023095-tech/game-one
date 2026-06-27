@@ -29,7 +29,8 @@ const ENEMY_B_MOVE_SPEED = GAME_CONFIG.enemyB.moveSpeed;
 const ENEMY_B_PRE_ATTACK_TIME = GAME_CONFIG.enemyB.preAttackTime;
 const ENEMY_B_PRE_ATTACK_PULSES = GAME_CONFIG.enemyB.preAttackPulses;
 const ENEMY_B_GROUP_SPAWN_GAP = GAME_CONFIG.enemyB.groupSpawnGap;
-const ENEMY_B_GROUP_SIZE_LEVEL_GROWTH = GAME_CONFIG.enemyB.groupSizeLevelGrowth;
+const ENEMY_B_GROUP_SIZE_GROWTH_INTERVAL = GAME_CONFIG.enemyB.groupSizeGrowthInterval;
+const ENEMY_B_GROUP_SIZE_GROWTH_AMOUNT = GAME_CONFIG.enemyB.groupSizeGrowthAmount;
 const ENEMY_B_CORE_RADIUS = GAME_CONFIG.enemyB.coreRadius;
 const ENEMY_B_PRE_ATTACK_PULSE_SCALE = GAME_CONFIG.enemyB.preAttackPulseScale;
 
@@ -41,6 +42,8 @@ const ENEMY_C_DAMAGE_ON_HIT = GAME_CONFIG.enemyC.damageOnHit;
 const ENEMY_C_COLUMN_COUNT = GAME_CONFIG.enemyC.columnCount;
 const ENEMY_C_UNIT_GAP = GAME_CONFIG.enemyC.unitGap;
 const ENEMY_C_GROUP_COLUMNS = GAME_CONFIG.enemyC.groupColumns;
+const ENEMY_C_GROUP_COLUMNS_GROWTH_INTERVAL = GAME_CONFIG.enemyC.groupColumnsGrowthInterval;
+const ENEMY_C_GROUP_COLUMNS_GROWTH_AMOUNT = GAME_CONFIG.enemyC.groupColumnsGrowthAmount;
 const ENEMY_C_COLUMN_GAP = GAME_CONFIG.enemyC.columnGap;
 const ENEMY_C_GROUP_COOLDOWN = GAME_CONFIG.enemyC.groupCooldown;
 const ENEMY_C_SPAWN_SIDE_OFFSET = GAME_CONFIG.enemyC.spawnSideOffset;
@@ -55,7 +58,35 @@ const ENEMY_C_CORE_RADIUS = GAME_CONFIG.enemyC.coreRadius;
 const ENEMY_C_CORE_PULSE_SPEED = GAME_CONFIG.enemyC.corePulseSpeed;
 const ENEMY_C_CORE_PULSE_SCALE = GAME_CONFIG.enemyC.corePulseScale;
 
-const LEVEL_NO_SPAWN_TIME = GAME_CONFIG.level.noSpawnTime;
+const BOSS_A_EVERY_LEVELS = GAME_CONFIG.bossA.everyLevels;
+const BOSS_A_HP = GAME_CONFIG.bossA.hp;
+const BOSS_A_RADIUS = GAME_CONFIG.bossA.radius;
+const BOSS_A_ENTER_SPEED = GAME_CONFIG.bossA.enterSpeed;
+const BOSS_A_HOVER_Y_RATE = GAME_CONFIG.bossA.hoverYRate;
+const BOSS_A_HOVER_DELAY = GAME_CONFIG.bossA.hoverDelay;
+const BOSS_A_STATE_HOVER_DELAY = GAME_CONFIG.bossA.stateHoverDelay;
+const BOSS_A_MOVE_SPEED = GAME_CONFIG.bossA.moveSpeed;
+const BOSS_A_MOVE_Y_MIN_RATE = GAME_CONFIG.bossA.moveYMinRate;
+const BOSS_A_MOVE_Y_MAX_RATE = GAME_CONFIG.bossA.moveYMaxRate;
+const BOSS_A_MOVE_X_MARGIN = GAME_CONFIG.bossA.moveXMargin;
+const BOSS_A_RING_BULLET_COUNT = GAME_CONFIG.bossA.ringBulletCount;
+const BOSS_A_RING_COUNT = GAME_CONFIG.bossA.ringCount;
+const BOSS_A_RING_INTERVAL = GAME_CONFIG.bossA.ringInterval;
+const BOSS_A_SPREAD_BULLET_COUNT = GAME_CONFIG.bossA.spreadBulletCount;
+const BOSS_A_SPREAD_ANGLE = GAME_CONFIG.bossA.spreadAngle;
+const BOSS_A_SPREAD_ROUNDS = GAME_CONFIG.bossA.spreadRounds;
+const BOSS_A_SPREAD_INTERVAL = GAME_CONFIG.bossA.spreadInterval;
+const BOSS_A_SPREAD_BULLET_SPEED = GAME_CONFIG.bossA.spreadBulletSpeed;
+const BOSS_A_SPREAD_BULLET_DAMAGE = GAME_CONFIG.bossA.spreadBulletDamage;
+const BOSS_A_BULLET_SPEED = GAME_CONFIG.bossA.bulletSpeed;
+const BOSS_A_BULLET_DAMAGE = GAME_CONFIG.bossA.bulletDamage;
+const BOSS_A_BULLET_RADIUS = GAME_CONFIG.bossA.bulletRadius;
+const BOSS_A_BULLET_WIDTH = GAME_CONFIG.bossA.bulletWidth;
+const BOSS_A_BULLET_HEIGHT = GAME_CONFIG.bossA.bulletHeight;
+const BOSS_A_BULLET_LIFE = GAME_CONFIG.bossA.bulletLife;
+const BOSS_A_HP_MULTIPLIER_PER_APPEARANCE = GAME_CONFIG.bossA.hpMultiplierPerAppearance;
+const BOSS_A_COIN_REWARD = GAME_CONFIG.bossA.coinReward;
+const ENEMY_GOLD_HP_MULTIPLIER = GAME_CONFIG.reward.goldHpMultiplier;
 
 const ENEMY_COIN_REWARD_A = GAME_CONFIG.reward.coinPerEnemyA;
 const ENEMY_COIN_REWARD_B = GAME_CONFIG.reward.coinPerEnemyB;
@@ -66,6 +97,10 @@ const ENEMY_GOLD_CHANCE_C = GAME_CONFIG.reward.goldEnemyChanceC;
 const ENEMY_GOLD_MULTIPLIER = GAME_CONFIG.reward.goldEnemyMultiplier;
 const ENEMY_GOLD_STROKE_COLOR = GAME_CONFIG.reward.goldStrokeColor;
 const ENEMY_GOLD_STROKE_WIDTH = GAME_CONFIG.reward.goldStrokeWidth;
+const ENEMY_GOLD_PULSE_SPEED = GAME_CONFIG.reward.goldPulseSpeed;
+const ENEMY_GOLD_PULSE_SCALE = GAME_CONFIG.reward.goldPulseScale;
+const ENEMY_GOLD_GLOW_BLUR = GAME_CONFIG.reward.goldGlowBlur;
+
 
 function rollGoldEnemy(type) {
   let chance = ENEMY_GOLD_CHANCE_A;
@@ -84,6 +119,11 @@ function getEnemyCoinReward(type, isGold) {
   const baseReward = getEnemyBaseCoinReward(type);
   return Math.max(0, Math.floor(baseReward * (isGold ? ENEMY_GOLD_MULTIPLIER : 1)));
 }
+
+function getEnemyHp(baseHp, isGold) {
+  const hpMultiplier = isGold ? ENEMY_GOLD_HP_MULTIPLIER : 1;
+  return Math.max(1, Math.round(baseHp * hpMultiplier));
+}
 function nextEnemySpawnDelay() {
   const spawnMultiplier = 1 + Math.max(0, level - 1) * ENEMY_SPAWN_LEVEL_GROWTH;
   return rand(ENEMY_SPAWN_MIN_INTERVAL, ENEMY_SPAWN_MAX_INTERVAL) / spawnMultiplier;
@@ -91,6 +131,7 @@ function nextEnemySpawnDelay() {
 
 function spawnEnemy() {
   const gold = rollGoldEnemy("A");
+  const hp = getEnemyHp(ENEMY_HP, gold);
 
   enemies.push({
     type: "A",
@@ -99,15 +140,15 @@ function spawnEnemy() {
     x: rand(45, W - 45),
     y: -60,
     r: ENEMY_RADIUS,
-    hp: ENEMY_HP,
-    maxHp: ENEMY_HP,
+    hp: hp,
+    maxHp: hp,
     speed: rand(ENEMY_MIN_SPEED, ENEMY_MAX_SPEED),
     hitShake: 0
   });
 }
 
 function updateEnemySpawn(dt) {
-  if (levelNoSpawnTimer > 0) {
+  if (!canSpawnEnemyType("A")) {
     enemySpawnTimer = 0;
     return;
   }
@@ -157,6 +198,7 @@ function setEnemyBMoveTarget(e) {
 
 function spawnEnemyB(index = 0, total = 1) {
   const gold = rollGoldEnemy("B");
+  const hp = getEnemyHp(ENEMY_B_HP, gold);
   const x = getEnemyBHoverX(index, total);
   const hoverY = getEnemyBHoverY();
 
@@ -167,8 +209,8 @@ function spawnEnemyB(index = 0, total = 1) {
     x: x,
     y: -70,
     r: ENEMY_B_RADIUS,
-    hp: ENEMY_B_HP,
-    maxHp: ENEMY_B_HP,
+    hp: hp,
+    maxHp: hp,
     speed: ENEMY_B_ENTER_SPEED,
     targetX: x,
     targetY: hoverY,
@@ -284,6 +326,7 @@ function sampleEnemyCPath(path, age) {
 
 function spawnEnemyCUnit(path) {
   const gold = rollGoldEnemy("C");
+  const hp = getEnemyHp(ENEMY_C_HP, gold);
   const start = sampleEnemyCPath(path, 0) || path;
 
   enemies.push({
@@ -293,8 +336,8 @@ function spawnEnemyCUnit(path) {
     x: start.x,
     y: start.y,
     r: ENEMY_C_RADIUS,
-    hp: ENEMY_C_HP,
-    maxHp: ENEMY_C_HP,
+    hp: hp,
+    maxHp: hp,
     speed: ENEMY_C_SPEED,
     path: path,
     pathAge: 0,
@@ -316,19 +359,27 @@ function createEnemyCColumnQueue(index, firstSide) {
   };
 }
 
+function getEnemyCGroupColumns() {
+  const growthInterval = Math.max(1, ENEMY_C_GROUP_COLUMNS_GROWTH_INTERVAL || 1);
+  const levelStep = Math.floor(Math.max(0, level - ENEMY_C_START_LEVEL) / growthInterval);
+  const levelBonus = levelStep * ENEMY_C_GROUP_COLUMNS_GROWTH_AMOUNT;
+  return Math.max(1, Math.floor(ENEMY_C_GROUP_COLUMNS + levelBonus));
+}
+
 function startEnemyCGroup() {
   enemyCGroupActive = 1;
   enemyCGroupFirstSide = Math.random() < 0.5 ? "left" : "right";
   enemyCColumnQueues = [];
 
-  for (let i = 0; i < ENEMY_C_GROUP_COLUMNS; i++) {
+  const groupColumns = getEnemyCGroupColumns();
+  for (let i = 0; i < groupColumns; i++) {
     enemyCColumnQueues.push(createEnemyCColumnQueue(i, enemyCGroupFirstSide));
   }
 }
 
 function updateEnemyCSpawner(dt) {
   if (level < ENEMY_C_START_LEVEL) return;
-  if (levelNoSpawnTimer > 0) return;
+  if (!canSpawnEnemyType("C")) return;
 
   if (!enemyCGroupActive) {
     enemyCGroupTimer -= dt;
@@ -395,7 +446,9 @@ function updateEnemyC(e, dt) {
   }
 }
 function getEnemyBGroupSize() {
-  const levelBonus = Math.max(0, level - ENEMY_B_START_LEVEL) * ENEMY_B_GROUP_SIZE_LEVEL_GROWTH;
+  const growthInterval = Math.max(1, ENEMY_B_GROUP_SIZE_GROWTH_INTERVAL || 1);
+  const levelStep = Math.floor(Math.max(0, level - ENEMY_B_START_LEVEL) / growthInterval);
+  const levelBonus = levelStep * ENEMY_B_GROUP_SIZE_GROWTH_AMOUNT;
   return Math.max(1, Math.floor(ENEMY_B_GROUP_SIZE + levelBonus));
 }
 
@@ -421,7 +474,7 @@ function updateEnemyBGroupSpawn(dt) {
 
 function updateEnemyBSpawner(dt) {
   if (level < ENEMY_B_START_LEVEL) return;
-  if (levelNoSpawnTimer > 0) return;
+  if (!canSpawnEnemyType("B")) return;
 
   if (enemyBGroupActive) {
     updateEnemyBGroupSpawn(dt);
@@ -549,6 +602,164 @@ function updateEnemyB(e, dt) {
   }
 }
 
+function getBossAAppearanceIndex() {
+  return Math.max(0, Math.floor(level / Math.max(1, BOSS_A_EVERY_LEVELS)) - 1);
+}
+
+function getBossAHp() {
+  return Math.max(1, Math.round(BOSS_A_HP * Math.pow(BOSS_A_HP_MULTIPLIER_PER_APPEARANCE, getBossAAppearanceIndex())));
+}
+
+function spawnBossA() {
+  const hp = getBossAHp();
+
+  enemies.push({
+    type: "BossA",
+    boss: 1,
+    x: W / 2,
+    y: -BOSS_A_RADIUS - 30,
+    r: BOSS_A_RADIUS,
+    hp: hp,
+    maxHp: hp,
+    coinReward: BOSS_A_COIN_REWARD,
+    speed: 0,
+    state: "enter",
+    stateTimer: 0,
+    targetX: W / 2,
+    targetY: H * BOSS_A_HOVER_Y_RATE,
+    ringTimer: 0,
+    ringsLeft: 0,
+    hitShake: 0
+  });
+}
+
+function startBossAStateHover(e) {
+  e.state = "stateHover";
+  e.stateTimer = BOSS_A_STATE_HOVER_DELAY;
+}
+
+function chooseBossAState(e) {
+  const roll = Math.floor(rand(0, 3));
+
+  if (roll === 0) {
+    e.state = "ring";
+    e.ringsLeft = BOSS_A_RING_COUNT;
+    e.ringTimer = 0;
+    e.ringStartAngle = 0;
+    return;
+  }
+
+  if (roll === 1) {
+    e.state = "move";
+    e.targetX = rand(BOSS_A_MOVE_X_MARGIN, W - BOSS_A_MOVE_X_MARGIN);
+    e.targetY = rand(H * BOSS_A_MOVE_Y_MIN_RATE, H * BOSS_A_MOVE_Y_MAX_RATE);
+    return;
+  }
+
+  e.state = "spread";
+  e.spreadRoundsLeft = BOSS_A_SPREAD_ROUNDS;
+  e.spreadTimer = 0;
+}
+
+function pushBossABullet(e, angle, speed, damage) {
+  enemyBullets.push({
+    team: "enemy",
+    x: e.x,
+    y: e.y,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    r: BOSS_A_BULLET_RADIUS,
+    w: BOSS_A_BULLET_WIDTH,
+    h: BOSS_A_BULLET_HEIGHT,
+    damage: damage,
+    color: ENEMY_BULLET_COLOR,
+    life: BOSS_A_BULLET_LIFE,
+    dead: 0
+  });
+}
+
+function shootBossARing(e) {
+  const count = Math.max(1, Math.floor(BOSS_A_RING_BULLET_COUNT));
+  const startAngle = e.ringStartAngle || 0;
+
+  for (let i = 0; i < count; i++) {
+    const angle = startAngle + Math.PI * 2 * i / count;
+    pushBossABullet(e, angle, BOSS_A_BULLET_SPEED, BOSS_A_BULLET_DAMAGE);
+  }
+}
+
+function shootBossASpread(e) {
+  const count = Math.max(1, Math.floor(BOSS_A_SPREAD_BULLET_COUNT));
+  const aim = player ? Math.atan2(player.y - e.y, player.x - e.x) : Math.PI / 2;
+  const start = aim - BOSS_A_SPREAD_ANGLE / 2;
+  const step = count <= 1 ? 0 : BOSS_A_SPREAD_ANGLE / (count - 1);
+
+  for (let i = 0; i < count; i++) {
+    pushBossABullet(e, start + step * i, BOSS_A_SPREAD_BULLET_SPEED, BOSS_A_SPREAD_BULLET_DAMAGE);
+  }
+}
+
+function updateBossA(e, dt) {
+  if (e.state === "enter") {
+    e.y += BOSS_A_ENTER_SPEED * dt;
+
+    if (e.y >= e.targetY) {
+      e.y = e.targetY;
+      e.state = "hover";
+      e.stateTimer = BOSS_A_HOVER_DELAY;
+    }
+
+    return;
+  }
+
+  if (e.state === "hover" || e.state === "stateHover") {
+    e.stateTimer -= dt;
+    if (e.stateTimer <= 0) chooseBossAState(e);
+    return;
+  }
+
+  if (e.state === "ring") {
+    e.ringTimer -= dt;
+
+    while (e.ringsLeft > 0 && e.ringTimer <= 0) {
+      shootBossARing(e);
+      e.ringsLeft--;
+      e.ringTimer += BOSS_A_RING_INTERVAL;
+    }
+
+    if (e.ringsLeft <= 0) startBossAStateHover(e);
+    return;
+  }
+
+  if (e.state === "move") {
+    const dx = e.targetX - e.x;
+    const dy = e.targetY - e.y;
+    const d = Math.hypot(dx, dy);
+
+    if (d <= Math.max(4, BOSS_A_MOVE_SPEED * dt)) {
+      e.x = e.targetX;
+      e.y = e.targetY;
+      startBossAStateHover(e);
+    } else {
+      e.x += dx / d * BOSS_A_MOVE_SPEED * dt;
+      e.y += dy / d * BOSS_A_MOVE_SPEED * dt;
+    }
+
+    return;
+  }
+
+  if (e.state === "spread") {
+    e.spreadTimer -= dt;
+
+    while (e.spreadRoundsLeft > 0 && e.spreadTimer <= 0) {
+      shootBossASpread(e);
+      e.spreadRoundsLeft--;
+      e.spreadTimer += BOSS_A_SPREAD_INTERVAL;
+    }
+
+    if (e.spreadRoundsLeft <= 0) startBossAStateHover(e);
+  }
+}
 function updateEnemyActions(dt) {
   updateEnemyBSpawner(dt);
   updateEnemyCSpawner(dt);
@@ -558,10 +769,33 @@ function updateEnemyActions(dt) {
     if (e.dead) continue;
     if (e.type === "B") updateEnemyB(e, dt);
     if (e.type === "C") updateEnemyC(e, dt);
+    if (e.type === "BossA") updateBossA(e, dt);
   }
 }
 
+function getGoldEnemyPulse() {
+  return 0.5 + Math.sin(performance.now() / 1000 * ENEMY_GOLD_PULSE_SPEED) * 0.5;
+}
+
+function drawGoldEnemyOutline(scale = 1) {
+  const pulse = getGoldEnemyPulse();
+
+  ctx.save();
+  ctx.scale(1 + pulse * ENEMY_GOLD_PULSE_SCALE, 1 + pulse * ENEMY_GOLD_PULSE_SCALE);
+  ctx.strokeStyle = ENEMY_GOLD_STROKE_COLOR;
+  ctx.lineWidth = ENEMY_GOLD_STROKE_WIDTH * scale;
+  ctx.shadowColor = ENEMY_GOLD_STROKE_COLOR;
+  ctx.shadowBlur = ENEMY_GOLD_GLOW_BLUR * (0.35 + pulse * 0.65) * scale;
+  ctx.globalAlpha = 0.78 + pulse * 0.22;
+  ctx.stroke();
+  ctx.restore();
+}
 function drawEnemy(e) {
+  if (e.type === "BossA") {
+    drawBossA(e);
+    return;
+  }
+
   if (e.type === "B") {
     drawEnemyB(e);
     return;
@@ -595,11 +829,8 @@ function drawEnemy(e) {
   ctx.closePath();
   ctx.fill();
 
-  if (e.gold) {
-    ctx.strokeStyle = ENEMY_GOLD_STROKE_COLOR;
-    ctx.lineWidth = ENEMY_GOLD_STROKE_WIDTH;
-    ctx.stroke();
-  }
+  if (e.gold) drawGoldEnemyOutline(s);
+
 
   ctx.fillStyle = "#ffd1d8";
   ctx.beginPath();
@@ -635,11 +866,8 @@ function drawEnemyC(e) {
   ctx.closePath();
   ctx.fill();
 
-  if (e.gold) {
-    ctx.strokeStyle = ENEMY_GOLD_STROKE_COLOR;
-    ctx.lineWidth = ENEMY_GOLD_STROKE_WIDTH;
-    ctx.stroke();
-  }
+  if (e.gold) drawGoldEnemyOutline(s);
+
 
   ctx.fillStyle = "#2a061d";
   ctx.fillRect(-4 * s, -4 * s, 8 * s, 12 * s);
@@ -694,11 +922,8 @@ function drawEnemyB(e) {
   ctx.closePath();
   ctx.fill();
 
-  if (e.gold) {
-    ctx.strokeStyle = ENEMY_GOLD_STROKE_COLOR;
-    ctx.lineWidth = ENEMY_GOLD_STROKE_WIDTH;
-    ctx.stroke();
-  }
+  if (e.gold) drawGoldEnemyOutline(s);
+
 
   ctx.fillStyle = "#d8dcff";
   ctx.fillRect(-10 * s, -5 * s, 20 * s, 11 * s);
@@ -716,17 +941,64 @@ function drawEnemyB(e) {
   drawEnemyHpBar(e, shakeX, shakeY);
 }
 
+function drawBossA(e) {
+  let shakeX = 0;
+  let shakeY = 0;
+
+  if (e.hitShake > 0) {
+    const rate = e.hitShake / ENEMY_HIT_SHAKE_TIME;
+    const power = ENEMY_HIT_SHAKE_POWER * rate;
+    shakeX = rand(-power, power);
+    shakeY = rand(-power * 0.55, power * 0.55);
+  }
+
+  const pulse = 0.5 + Math.sin(performance.now() / 1000 * 3.2) * 0.5;
+  const s = e.r / 42;
+
+  ctx.save();
+  ctx.translate(e.x + shakeX, e.y + shakeY);
+  ctx.fillStyle = "#7f2048";
+  ctx.beginPath();
+  ctx.moveTo(0, 44 * s);
+  ctx.lineTo(-46 * s, 10 * s);
+  ctx.lineTo(-34 * s, -34 * s);
+  ctx.lineTo(0, -48 * s);
+  ctx.lineTo(34 * s, -34 * s);
+  ctx.lineTo(46 * s, 10 * s);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = "#ff6b8d";
+  ctx.lineWidth = 3 * s;
+  ctx.stroke();
+
+  ctx.fillStyle = "#ffb25c";
+  ctx.shadowColor = "#ff8a3d";
+  ctx.shadowBlur = 12 * s;
+  ctx.beginPath();
+  ctx.arc(0, 8 * s, (11 + pulse * 4) * s, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = "#ffe0ec";
+  ctx.fillRect(-18 * s, -12 * s, 36 * s, 12 * s);
+  ctx.restore();
+
+  drawEnemyHpBar(e, shakeX, shakeY);
+}
 function drawEnemyHpBar(e, shakeX, shakeY) {
   const barW = e.r * 2.1;
   const barH = 5;
   const hpRate = clamp(e.hp / e.maxHp, 0, 1);
+  const barY = e.y - e.r - 15 + shakeY;
 
-  ctx.fillStyle = "rgba(255,255,255,0.25)";
-  ctx.fillRect(e.x - barW / 2 + shakeX, e.y - e.r - 15 + shakeY, barW, barH);
+  ctx.fillStyle = e.gold ? "rgba(255,210,74,0.24)" : "rgba(255,255,255,0.25)";
+  ctx.fillRect(e.x - barW / 2 + shakeX, barY, barW, barH);
 
-  ctx.fillStyle = e.type === "B" ? "#95a0ff" : (e.type === "C" ? "#ffe36d" : "#8cff7a");
-  ctx.fillRect(e.x - barW / 2 + shakeX, e.y - e.r - 15 + shakeY, barW * hpRate, barH);
+  ctx.fillStyle = e.gold ? ENEMY_GOLD_STROKE_COLOR : (e.type === "B" ? "#95a0ff" : (e.type === "C" ? "#ffe36d" : "#8cff7a"));
+  ctx.fillRect(e.x - barW / 2 + shakeX, barY, barW * hpRate, barH);
 }
+
 
 
 

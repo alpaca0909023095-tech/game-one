@@ -7,10 +7,14 @@ const COIN_MAGNET_RADIUS = GAME_CONFIG.reward.coinMagnetRadius;
 const COIN_COLLECT_RADIUS = GAME_CONFIG.reward.coinCollectRadius;
 const COIN_MAGNET_SPEED = GAME_CONFIG.reward.coinMagnetSpeed;
 const COIN_DROP_SIZE = GAME_CONFIG.reward.coinSize;
-const LEVEL_DURATION = GAME_CONFIG.level.duration;
-const LEVEL_DURATION_GROWTH = GAME_CONFIG.level.durationGrowth;
-const LEVEL_HEAL_ON_START = GAME_CONFIG.level.healOnStart;
+const LEVEL_INTRO_DURATION = GAME_CONFIG.level.introDuration;
+const LEVEL_UPPER_DURATION = GAME_CONFIG.level.upperDuration;
+const LEVEL_MIDDLE_DURATION = GAME_CONFIG.level.middleDuration;
+const LEVEL_LOWER_DURATION = GAME_CONFIG.level.lowerDuration;
+const LEVEL_ENDING_DURATION = GAME_CONFIG.level.endingDuration;
 const LEVEL_TEXT_DURATION = GAME_CONFIG.level.textDuration;
+const BOSS_LEVEL_INTERVAL = GAME_CONFIG.bossA.everyLevels;
+const BOSS_DEATH_UI_DELAY = GAME_CONFIG.bossA.deathUiDelay;
 
 const STAR_COUNT = GAME_CONFIG.background.starCount;
 const GRID_SIZE = GAME_CONFIG.background.gridSize;
@@ -53,6 +57,7 @@ let running = 0;
 let choosingSkill = 0;
 let closingSkillPanel = 0;
 let skillInputReady = 0;
+let bossClearTimer = 0;
 
 let lastTime = performance.now();
 let enemySpawnTimer = 0;
@@ -152,14 +157,45 @@ function triggerCoinEffect() {
 }
 
 function getCurrentLevelDuration() {
-  return LEVEL_DURATION + Math.max(0, level - 1) * LEVEL_DURATION_GROWTH;
+  return LEVEL_INTRO_DURATION + LEVEL_UPPER_DURATION + LEVEL_MIDDLE_DURATION + LEVEL_LOWER_DURATION + LEVEL_ENDING_DURATION;
 }
 
-function healPlayerForNewLevel(newLevel) {
-  if (!player || newLevel <= 1 || LEVEL_HEAL_ON_START <= 0) return;
-  player.hp = clamp(player.hp + LEVEL_HEAL_ON_START, 0, PLAYER_MAX_HP);
-  updateHpBar();
+function isBossLevel(value = level) {
+  return BOSS_LEVEL_INTERVAL > 0 && value > 0 && value % BOSS_LEVEL_INTERVAL === 0;
 }
+
+function getCurrentLevelElapsed() {
+  return (performance.now() - levelStartTime) / 1000;
+}
+
+function getCurrentLevelSegment() {
+  const elapsed = getCurrentLevelElapsed();
+  const upperStart = LEVEL_INTRO_DURATION;
+  const middleStart = upperStart + LEVEL_UPPER_DURATION;
+  const lowerStart = middleStart + LEVEL_MIDDLE_DURATION;
+  const endingStart = lowerStart + LEVEL_LOWER_DURATION;
+  const levelEnd = endingStart + LEVEL_ENDING_DURATION;
+
+  if (elapsed < upperStart) return "intro";
+  if (elapsed < middleStart) return "upper";
+  if (elapsed < lowerStart) return "middle";
+  if (elapsed < endingStart) return "lower";
+  if (elapsed < levelEnd) return "ending";
+  return "done";
+}
+
+function canSpawnEnemyType(type) {
+  if (isBossLevel()) return 0;
+
+  const segment = getCurrentLevelSegment();
+  if (segment === "intro" || segment === "ending" || segment === "done") return 0;
+
+  const spawnRules = GAME_CONFIG.level.segmentSpawn || {};
+  const key = type === "B" ? "enemyB" : (type === "C" ? "enemyC" : "enemyA");
+  const rules = spawnRules[key] || {};
+  return rules[segment] === 1 ? 1 : 0;
+}
+
 
 function resetEnemyBGroupState() {
   enemyBRespawnTimer = 0;
@@ -184,12 +220,11 @@ function resetEnemyCGroupState() {
 }
 
 function startLevel(newLevel) {
-  healPlayerForNewLevel(newLevel);
   level = newLevel;
   levelStartTime = performance.now();
   levelText = "\u7b2c " + level + " \u95dc";
   levelTextTimer = LEVEL_TEXT_DURATION;
-  levelNoSpawnTimer = LEVEL_NO_SPAWN_TIME;
+  levelNoSpawnTimer = 0;
   enemySpawnTimer = 0;
   resetEnemyBGroupState();
   resetEnemyCGroupState();
@@ -203,7 +238,13 @@ function startLevel(newLevel) {
   coinDrops = [];
   shockwaves = [];
   resetShieldsForCurrentSkills();
-  timeNumber.textContent = getCurrentLevelDuration() + "s";
+
+  if (isBossLevel()) {
+    spawnBossA();
+    timeNumber.textContent = "BOSS";
+  } else {
+    timeNumber.textContent = getCurrentLevelDuration() + "s";
+  }
 }
 
 function resetGame() {
@@ -441,6 +482,19 @@ function killEnemy(enemy, explosionScale = 1.3) {
   const reward = enemy.coinReward !== undefined ? enemy.coinReward : 0;
   if (reward > 0) spawnCoinDrops(enemy.x, enemy.y, reward);
   createExplosion(enemy.x, enemy.y, explosionScale);
+  tryApplyKillHeal();
+
+  if (enemy.type === "BossA") {
+    timeNumber.textContent = "CLEAR";
+    bullets = [];
+    enemyBullets = [];
+    shockwaves = [];
+    enemies = enemies.filter(item => item !== enemy && !item.dead);
+    resetHomingEggTimers();
+    resetShockwaveTimers();
+    bossClearTimer = BOSS_DEATH_UI_DELAY;
+    return;
+  }
 
   if (enemy.type === "B") {
     enemyBRespawnTimer = ENEMY_B_RESPAWN_DELAY;
@@ -770,7 +824,12 @@ function updateLevelTimer(dt) {
   levelTextTimer -= dt;
   levelNoSpawnTimer -= dt;
 
-  const elapsed = (performance.now() - levelStartTime) / 1000;
+  if (isBossLevel()) {
+    timeNumber.textContent = "BOSS";
+    return;
+  }
+
+  const elapsed = getCurrentLevelElapsed();
   const levelDuration = getCurrentLevelDuration();
   const remain = Math.max(0, Math.ceil(levelDuration - elapsed));
 
@@ -801,7 +860,7 @@ function damagePlayer(amount) {
 
 function updateEnemyCollision(dt) {
   for (let e of enemies) {
-    if (e.type !== "B" && e.type !== "C") e.y += e.speed * dt;
+    if (e.type !== "B" && e.type !== "C" && e.type !== "BossA") e.y += e.speed * dt;
     e.hitShake -= dt;
 
     if (distance(player.x, player.y, e.x, e.y) < player.r + e.r) {
@@ -923,6 +982,20 @@ function update(dt) {
 
   updatePlayerMovement(dt);
   updateLevelTimer(dt);
+
+  if (bossClearTimer > 0) {
+    bossClearTimer -= dt;
+    player.invincible -= dt;
+    player.skillFlash -= dt;
+    player.skillLock -= dt;
+    player.hitShake -= dt;
+    updateCoinDrops(dt);
+    updateParticles(dt);
+    updateHpBar();
+
+    if (bossClearTimer <= 0) openSkillPanel();
+    return;
+  }
 
   if (!running) return;
 
@@ -1103,6 +1176,8 @@ resize();
 window.addEventListener("resize", resize);
 bindInput();
 requestAnimationFrame(loop);
+
+
 
 
 
