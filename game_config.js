@@ -8,9 +8,6 @@ window.GAME_CONFIG = {
     radius: 13,               // 玩家碰撞半徑。
     modelScale: 0.7,          // 玩家模型顯示倍率，1 為原始大小。
     startYRate: 0.72,         // 玩家起始 Y 位置比例。
-    followStrength: 700,      // 玩家追向拖曳目標的力量。
-    followDamping: 28,        // 玩家移動阻尼。
-    dragMoveScale: 1.0,       // 相對拖曳位移倍率。
     damageOnHit: 20,          // 玩家撞到一般敵人時受到的傷害。
     hitShakeTime: 0.22,       // 玩家受傷震動持續秒數。
     hitShakePower: 20         // 玩家受傷震動強度。
@@ -307,3 +304,4 @@ window.GAME_CONFIG = {
     }
   }
 };
+

@@ -1,14 +1,8 @@
 ﻿// 玩家基礎數值從 config.js 讀取。
-const FINGER_OFFSET_Y = GAME_CONFIG.player.fingerOffsetY;
-
 const PLAYER_MAX_HP = GAME_CONFIG.player.maxHp;
 const PLAYER_RADIUS = GAME_CONFIG.player.radius;
 const PLAYER_MODEL_SCALE = GAME_CONFIG.player.modelScale;
 const PLAYER_START_Y_RATE = GAME_CONFIG.player.startYRate;
-
-const PLAYER_FOLLOW_STRENGTH = GAME_CONFIG.player.followStrength;
-const PLAYER_FOLLOW_DAMPING = GAME_CONFIG.player.followDamping;
-const PLAYER_DRAG_MOVE_SCALE = GAME_CONFIG.player.dragMoveScale;
 
 const PLAYER_DAMAGE_ON_HIT = GAME_CONFIG.player.damageOnHit;
 const PLAYER_HIT_SHAKE_TIME = GAME_CONFIG.player.hitShakeTime;
@@ -21,10 +15,6 @@ function createPlayer() {
   return {
     x: startX,
     y: startY,
-    targetX: startX,
-    targetY: startY,
-    vx: 0,
-    vy: 0,
     r: PLAYER_RADIUS,
     hp: PLAYER_MAX_HP,
     invincible: 0,
@@ -39,53 +29,17 @@ function triggerPlayerHitShake() {
   player.hitShake = PLAYER_HIT_SHAKE_TIME;
 }
 
-function setPlayerTarget(clientX, clientY) {
-  if (!running) return;
-
-  const targetX = clientX;
-  const targetY = clientY - FINGER_OFFSET_Y;
-
-  player.targetX = clamp(targetX, player.r, W - player.r);
-  player.targetY = clamp(targetY, player.r + 55, H - player.r);
-}
 
 function movePlayerTargetBy(deltaX, deltaY) {
   if (!running) return;
 
-  player.targetX = clamp(player.targetX + deltaX * PLAYER_DRAG_MOVE_SCALE, player.r, W - player.r);
-  player.targetY = clamp(player.targetY + deltaY * PLAYER_DRAG_MOVE_SCALE, player.r + 55, H - player.r);
+  player.x = clamp(player.x + deltaX, player.r, W - player.r);
+  player.y = clamp(player.y + deltaY, player.r + 55, H - player.r);
 }
 
 function updatePlayerMovement(dt) {
-  const dx = player.targetX - player.x;
-  const dy = player.targetY - player.y;
-
-  player.vx += dx * PLAYER_FOLLOW_STRENGTH * dt;
-  player.vy += dy * PLAYER_FOLLOW_STRENGTH * dt;
-
-  const damping = Math.exp(-PLAYER_FOLLOW_DAMPING * dt);
-  player.vx *= damping;
-  player.vy *= damping;
-
-  player.x += player.vx * dt;
-  player.y += player.vy * dt;
-
-  if (player.x < player.r) {
-    player.x = player.r;
-    player.vx = 0;
-  }
-  if (player.x > W - player.r) {
-    player.x = W - player.r;
-    player.vx = 0;
-  }
-  if (player.y < player.r + 55) {
-    player.y = player.r + 55;
-    player.vy = 0;
-  }
-  if (player.y > H - player.r) {
-    player.y = H - player.r;
-    player.vy = 0;
-  }
+  player.x = clamp(player.x, player.r, W - player.r);
+  player.y = clamp(player.y, player.r + 55, H - player.r);
 }
 
 function updateHpBar() {
@@ -170,3 +124,6 @@ function drawPlayer() {
 
   ctx.restore();
 }
+
+
+
